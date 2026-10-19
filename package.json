@@ -1,0 +1,6 @@
+{
+  "name": "jellyfin-media-hider-ui-tests",
+  "private": true,
+  "scripts": { "test": "node --test tests/Client.test.cjs" },
+  "devDependencies": { "jsdom": "26.1.0" }
+}

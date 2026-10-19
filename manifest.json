@@ -1,0 +1,21 @@
+[
+  {
+    "guid": "6801f019-837b-4c81-a542-572e55d871ba",
+    "name": "Media Hider",
+    "description": "Administrator controls for movie and series visibility with optional user groups and one-time per-group reveal schedules. Jellyfin 12.1; English and Polish. File Transformation is required for title-page controls.",
+    "overview": "Hide titles from all users or selected groups and schedule group reveals.",
+    "owner": "Wardf1",
+    "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyfinMediaHider/main/assets/thumbnail.png",
+    "versions": [
+      {
+        "version": "1.3.0.0",
+        "timestamp": "2026-10-19T18:22:23Z",
+        "changelog": "Optional user groups, independent one-time reveal date and time for each group, administrator-only fallback without groups, simple catalog thumbnail, and in-memory File Transformation integration. Existing title settings are preserved.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "00cfaf9c9ac28454e2c2d66ad6e42c92",
+        "sourceUrl": "https://github.com/Wardf1/JellyfinMediaHider/releases/download/v1.3.0.0/MediaHider_1.3.0.0.zip"
+      }
+    ]
+  }
+]
