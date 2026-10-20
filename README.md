@@ -15,10 +15,10 @@ https://www.iamparadox.dev/jellyfin/plugins/manifest.json
 Add the Jelly QoL repository in **Dashboard → Plugins → Repositories**:
 
 ```text
-https://raw.githubusercontent.com/Wardf1/JellyfinMediaHider/main/manifest.json
+https://raw.githubusercontent.com/Wardf1/JellyQoL/main/manifest.json
 ```
 
-Install or update, restart Jellyfin, and reload the web client. The existing repository URL remains valid. For a server still running **Media Hider 1.3**, install **1.4** from the version selector and restart before upgrading further; 1.4 handles the name transition.
+Install or update, restart Jellyfin, and reload the web client. If your Jellyfin installation still uses the previous repository address, replace it with the URL above. Plugin settings are preserved. For a server still running **Media Hider 1.3**, install **1.4** from the version selector and restart before upgrading further; 1.4 handles the name transition.
 
 File Transformation adds the scripts in memory; web-directory write permissions are unnecessary. Custom controls require the server-hosted web client. Native and separately hosted clients do not receive injected scripts.
 
