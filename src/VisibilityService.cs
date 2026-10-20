@@ -72,7 +72,7 @@ public sealed class VisibilityService(ILibraryManager library, IUserManager user
         try
         {
             var previous = Config.QoL;
-            Config.QoL = new QoLSettings { EnableFilterWarnings = settings.EnableFilterWarnings, AnimateFilterWarnings = settings.AnimateFilterWarnings };
+            Config.QoL = settings.Validated();
             try { Plugin.Instance.SaveConfiguration(); }
             catch { Config.QoL = previous; throw; }
         }

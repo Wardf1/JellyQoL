@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Jellyfin.Plugin.MediaHider</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.MediaHider</RootNamespace>
-    <Version>1.4.0.0</Version>
+    <Version>1.5.0.0</Version>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
@@ -16,5 +16,6 @@
     <EmbeddedResource Include="src/configPage.html" />
     <EmbeddedResource Include="src/Client.js" />
     <EmbeddedResource Include="src/FilterWarnings.js" />
+    <EmbeddedResource Include="src/WebExtras.js" />
   </ItemGroup>
 </Project>

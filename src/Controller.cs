@@ -10,7 +10,7 @@ public sealed class MediaHiderController(VisibilityService service, WebIntegrati
     public ActionResult<QoLSettings> QoL() => Ok(Plugin.Instance.Configuration.QoL);
     [HttpPost("QoL")]
     public async Task<ActionResult> SaveQoL([FromBody] QoLSettings settings, CancellationToken ct)
-    { await service.SaveQoLAsync(settings, ct).ConfigureAwait(false); return NoContent(); }
+    { try { await service.SaveQoLAsync(settings, ct).ConfigureAwait(false); return NoContent(); } catch (ArgumentException ex) { return BadRequest(ex.Message); } }
     [HttpGet("Search")]
     public async Task<ActionResult<IReadOnlyList<MediaEntry>>> Search([FromQuery] string query, CancellationToken ct)
     {

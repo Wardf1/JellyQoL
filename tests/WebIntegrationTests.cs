@@ -10,14 +10,14 @@ public sealed class WebIntegrationTests
         var once = WebIntegration.Inject(original);
         Assert.Equal(once, WebIntegration.Inject(once));
         Assert.Contains("enhanced.js", once);
-        Assert.Contains("../MediaHider/FilterWarnings.js?v=1.4.0.0", once);
-        Assert.Contains("../MediaHider/Client.js?v=1.4.0.0", once);
+        Assert.Contains("../MediaHider/FilterWarnings.js?v=1.5.0.0", once);
+        Assert.Contains("../MediaHider/Client.js?v=1.5.0.0", once);
         Assert.Equal(original, WebIntegration.Remove(once));
     }
     [Fact]
     public void InjectionReplacesOldVersionAndRejectsMalformedDocuments()
     {
-        var old = WebIntegration.Inject("<BODY>Other content</BODY>").Replace("?v=1.4.0.0", "?v=1.0.0.0");
+        var old = WebIntegration.Inject("<BODY>Other content</BODY>").Replace("?v=1.5.0.0", "?v=1.0.0.0");
         Assert.DoesNotContain("?v=1.0.0.0", WebIntegration.Inject(old));
         Assert.Throws<InvalidDataException>(() => WebIntegration.Inject("<html>"));
         Assert.Throws<InvalidDataException>(() => WebIntegration.Inject("<body><!-- MediaHider:begin --></body>"));
@@ -44,7 +44,7 @@ public sealed class WebIntegrationTests
         Assert.Equal(nameof(WebIntegration.TransformIndexHtml), json.GetProperty("callbackMethod").GetString());
         var transformed = WebIntegration.TransformIndexHtml(new TransformationInput { Contents = "<body><script src=\"enhanced.js\"></script></body>" });
         Assert.Contains("enhanced.js", transformed);
-        Assert.Contains("MediaHider/Client.js?v=1.4.0.0", transformed);
+        Assert.Contains("MediaHider/Client.js?v=1.5.0.0", transformed);
     }
     [Fact]
     public void UnsupportedDependencyApiFailsExplicitly()
@@ -90,6 +90,23 @@ public sealed class WebIntegrationTests
         var config = (PluginConfiguration)serializer.Deserialize(reader)!;
         Assert.True(config.QoL.EnableFilterWarnings); Assert.True(config.QoL.AnimateFilterWarnings);
         Assert.Equal("Jellyfin.Plugin.MediaHider", typeof(Plugin).Assembly.GetName().Name);
-        Assert.Equal(typeof(QoLSettings), typeof(ClientAssetsController).GetMethod(nameof(ClientAssetsController.Features))!.ReturnType.GenericTypeArguments[0]);
+        Assert.Equal(typeof(FilterFeatures), typeof(ClientAssetsController).GetMethod(nameof(ClientAssetsController.Features))!.ReturnType.GenericTypeArguments[0]);
+    }
+    [Fact]
+    public void QoLSettingsValidateUrlsDatesAndLimitsAndPublicFeaturesContainOnlyFlags()
+    {
+        Assert.Throws<ArgumentException>(() => new QoLSettings { HeaderLink1Url = "javascript:alert(1)" }.Validated());
+        Assert.Throws<ArgumentException>(() => new QoLSettings { HeaderLink1Url = "https://user:password@example.org" }.Validated());
+        Assert.Throws<ArgumentException>(() => new QoLSettings { EnableAnnouncement = true }.Validated());
+        Assert.Throws<ArgumentException>(() => new QoLSettings { AnnouncementCooldownSeconds = -1 }.Validated());
+        var value = new QoLSettings { HeaderLink1Url = " https://example.org/ ", AnnouncementMessage = "Message", AnnouncementShowAfter = DateTime.UtcNow, AnnouncementExpiresAt = DateTime.UtcNow.AddDays(1) }.Validated();
+        Assert.Equal("https://example.org/", value.HeaderLink1Url); Assert.Equal(DateTimeKind.Utc, value.AnnouncementShowAfter!.Value.Kind);
+        var xmlSerializer = new System.Xml.Serialization.XmlSerializer(typeof(QoLSettings));
+        using var buffer = new MemoryStream(); xmlSerializer.Serialize(buffer, value); buffer.Position = 0;
+        var restored = (QoLSettings)xmlSerializer.Deserialize(buffer)!; Assert.Equal(value.AnnouncementExpiresAt, restored.AnnouncementExpiresAt);
+        var json = System.Text.Json.JsonSerializer.Serialize(new FilterFeatures(true, true));
+        Assert.DoesNotContain("Url", json); Assert.DoesNotContain("Announcement", json);
+        var extras = typeof(ClientAssetsController).GetMethod(nameof(ClientAssetsController.Extras))!;
+        Assert.NotEmpty(extras.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true));
     }
 }

@@ -91,3 +91,9 @@ test('committed Jellyfin settings take precedence over a transient checkbox prop
     const {d}=fixture(t,icon(true)+'<div id="filter-popover">'+section('filtersStatus','<input type="checkbox">')+'</div>',{filters:{Status:['IsPlayed']}});await pause();
     assert.equal(d.querySelector('#filtersStatus-header').getAttribute('data-jqol-filter-count'),'1');
 });
+test('a delayed feature poll cannot revert a newer saved preference',async t=>{
+ const {w,d}=fixture(t,icon(true));let complete;w.fetch=()=>new Promise(resolve=>{complete=resolve});await pause();
+ w.dispatchEvent(new w.CustomEvent('jellyqol:features',{detail:{EnableFilterWarnings:false,AnimateFilterWarnings:false}}));
+ complete({ok:true,json:async()=>({EnableFilterWarnings:true,AnimateFilterWarnings:true})});await pause();
+ assert.equal(d.querySelector('#filter').hasAttribute('data-jqol-filter-warning'),false);
+});

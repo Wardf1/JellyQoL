@@ -6,19 +6,26 @@
   <div data-role="content"><div class="content-primary" style="max-width:960px;margin:auto">
     <style>#mediaHiderPage [role="tab"] {background:transparent;color:inherit;border:0;border-bottom:3px solid transparent;border-radius:0;padding:.8em 1.1em;margin:0;box-shadow:none} #mediaHiderPage [role="tab"][aria-selected="true"] {color:#00a4dc;border-bottom-color:#00a4dc} #mediaHiderPage [role="tab"]:focus-visible {outline:2px solid #00a4dc;outline-offset:2px}</style>
     <h1>Jelly QoL</h1>
-    <div role="tablist" aria-label="Jelly QoL" style="display:flex;gap:.5em;margin:1.5em 0;border-bottom:1px solid #8885;padding-bottom:.75em">
+    <div role="tablist" aria-label="Jelly QoL" style="display:flex;flex-wrap:wrap;gap:.5em;margin:1.5em 0;border-bottom:1px solid #8885;padding-bottom:.75em">
       <button type="button" role="tab" id="jqMediaTab" aria-controls="jqMediaPanel" aria-selected="true" class="emby-button">Media Hider</button>
       <button type="button" role="tab" id="jqQoLTab" aria-controls="jqQoLPanel" aria-selected="false" tabindex="-1" class="emby-button">QoL</button>
+      <button type="button" role="tab" id="jqServicesTab" aria-controls="jqServicesPanel" aria-selected="false" tabindex="-1" class="emby-button">Services</button>
+      <button type="button" role="tab" id="jqAnnouncementsTab" aria-controls="jqAnnouncementsPanel" aria-selected="false" tabindex="-1" class="emby-button" data-mh-text="announcements">Announcements</button>
     </div>
     <div id="mhStatus" role="status" aria-live="polite" style="margin:1em 0;white-space:pre-wrap"></div>
     <section role="tabpanel" id="jqQoLPanel" aria-labelledby="jqQoLTab" hidden>
-      <h2>QoL</h2><p data-mh-text="filtersHelp">Active-filter warnings update automatically in the Jellyfin 12.1 web client, for all accounts.</p>
-      <form id="jqQoLForm">
-        <label style="display:flex;align-items:center;gap:.75em;margin:1.25em 0"><input type="checkbox" id="jqFilterWarnings" checked><span data-mh-text="filterWarnings">Warn about active filters</span></label>
-        <label style="display:flex;align-items:center;gap:.75em;margin:1.25em 0"><input type="checkbox" id="jqFilterAnimation" checked><span data-mh-text="filterAnimation">Animate active-filter warnings</span></label>
-        <p data-mh-text="filtersScope">These settings apply to all accounts in the server's web client. Changes reach other open clients within 30 seconds.</p>
-        <button is="emby-button" type="submit" class="raised button-submit"><span data-mh-text="save">Save</span></button>
-      </form>
+      <h2>QoL</h2><p data-mh-text="filtersScope">These settings apply to all accounts in the server web client. Other open clients update within 30 seconds.</p>
+      <form id="jqQoLForm"></form>
+    </section>
+    <section role="tabpanel" id="jqServicesPanel" aria-labelledby="jqServicesTab" hidden>
+      <h2>Services</h2><p data-mh-text="servicesHelp">Configure shortcuts in the header. Leave a URL empty to hide that shortcut.</p>
+      <form id="jqServicesForm"></form>
+      <hr style="margin:2em 0"><p data-mh-text="importHelp">Import supported settings from a JS Injector JSON export. Scripts are read as text and are never executed.</p>
+      <button type="button" id="jqImportButton" class="raised emby-button"><span data-mh-text="importScripts">Import JS Injector settings</span></button><input id="jqImportScripts" type="file" accept=".json,application/json" hidden>
+    </section>
+    <section role="tabpanel" id="jqAnnouncementsPanel" aria-labelledby="jqAnnouncementsTab" hidden>
+      <h2 data-mh-text="announcements">Announcements</h2><p data-mh-text="announcementHelp">Optional home-page message. Display limits and dismissal are remembered separately for each account in this browser. A changed message starts a new announcement.</p>
+      <form id="jqAnnouncementForm"></form>
     </section>
     <section role="tabpanel" id="jqMediaPanel" aria-labelledby="jqMediaTab">
     <p data-mh-text="introduction">Hide movies and entire series from non-administrator accounts.</p>
@@ -58,7 +65,7 @@
     var page = document.querySelector('#mediaHiderPage');
     if (window.MediaHiderUI) { window.MediaHiderUI.initializePanel(page); return; }
     var loader = document.createElement('script');
-    loader.src = ApiClient.getUrl('MediaHider/Client.js') + '?v=1.4.0.0';
+    loader.src = ApiClient.getUrl('MediaHider/Client.js') + '?v=1.5.0.0';
     loader.onload = function () { window.MediaHiderUI.initializePanel(page); };
     loader.onerror = function () { page.querySelector('#mhStatus').textContent = /^pl/i.test(document.documentElement.lang || navigator.language) ? 'Nie udało się załadować panelu Jelly QoL.' : 'Could not load the Jelly QoL panel.'; };
     document.head.appendChild(loader);

@@ -2,12 +2,20 @@
   {
     "guid": "6801f019-837b-4c81-a542-572e55d871ba",
     "name": "Jelly QoL",
-    "description": "Quality-of-life features for Jellyfin 12.1: live active-filter warnings and optional animations, plus movie/series visibility, user groups and independent reveal schedules. English and Polish.",
-    "overview": "Live filter warnings and Media Hider controls in two settings tabs.",
+    "description": "Quality-of-life features for Jellyfin 12.1: blinking filter warnings, configurable service shortcuts, search ordering, native context menus, pagination, announcements and media visibility. English and Polish.",
+    "overview": "Media Hider, QoL, Services and Announcements settings with JS Injector configuration import.",
     "owner": "Wardf1",
     "category": "General",
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyfinMediaHider/main/assets/jelly-qol.png",
     "versions": [
+      {
+        "version": "1.5.0.0",
+        "timestamp": "2026-10-20T18:57:40Z",
+        "changelog": "Blinking filter icon without toolbar text. Added configurable header shortcuts, native right-click menus, Movies/Series/Seerr search ordering with empty-section handling, toast icons, top/bottom pagination, optional scheduled announcements and safe JS Injector settings import. Four settings tabs: Media Hider, QoL, Services, Announcements. Names and URLs are saved in server configuration; no personal defaults are bundled.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "25660d67d0ebb5aad8dbc535fadec489",
+        "sourceUrl": "https://github.com/Wardf1/JellyfinMediaHider/releases/download/v1.5.0.0/JellyQoL_1.5.0.0.zip"
+      },
       {
         "version": "1.4.0.0",
         "timestamp": "2026-10-20T18:16:23Z",

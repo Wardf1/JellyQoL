@@ -136,15 +136,16 @@
     const options = { childList: true, subtree: true, characterData: true, attributes: true,
         attributeFilter: ['class', 'checked', 'aria-checked', 'aria-selected', 'hidden', 'lang'] };
     const observer = new MutationObserver(schedule);
-    let loadingFeatures = false;
+    let loadingFeatures = false, featureGeneration = 0;
     async function loadFeatures() {
         if (loadingFeatures || typeof window.fetch !== 'function') return;
         loadingFeatures = true;
+        const requestGeneration = featureGeneration;
         try {
             const response = await fetch(featureUrl, { credentials: 'same-origin', cache: 'no-store' });
             if (response.ok) {
                 const value = await response.json();
-                if (typeof value.EnableFilterWarnings === 'boolean' && typeof value.AnimateFilterWarnings === 'boolean') {
+                if (requestGeneration === featureGeneration && typeof value.EnableFilterWarnings === 'boolean' && typeof value.AnimateFilterWarnings === 'boolean') {
                     features = value; schedule();
                 }
             }
@@ -153,18 +154,18 @@
     }
     window.addEventListener('jellyqol:features', event => {
         if (typeof event.detail?.EnableFilterWarnings !== 'boolean' || typeof event.detail?.AnimateFilterWarnings !== 'boolean') return;
-        features = event.detail; schedule();
+        featureGeneration++; features = event.detail; schedule();
     });
     function start() {
         const style = document.createElement('style'); style.id = 'jelly-qol-filters-style';
         style.textContent = `
 @keyframes jqolFilterPulse { 0%,100% { color:#f87171; } 50% { color:#fbbf24; } }
+@keyframes jqolIconBlink { 0%,100% { color:#f87171; opacity:1; } 50% { color:#fbbf24; opacity:.25; } }
 [data-jqol-filter-warning] { color:#fbbf24!important; }
 [data-jqol-filter-warning] svg[data-testid="FilterAltIcon"],
-[data-jqol-filter-warning] .material-icons,
+[data-jqol-filter-warning] .material-icons { animation:jqolIconBlink 1.2s ease-in-out infinite!important; }
 html[data-jqol-filters-enabled] #filter-popover .MuiFormControlLabel-root:has(.MuiCheckbox-root.Mui-checked) .MuiFormControlLabel-label,
 [data-jqol-filter-label] { animation:jqolFilterPulse 1.2s ease-in-out infinite; }
-[data-jqol-filter-warning]::after { content:attr(data-jqol-filter-warning); font-size:.75rem; margin-inline-start:.5em; white-space:normal; }
 [data-jqol-filter-count] { background-color:rgba(255,160,30,.13)!important; }
 [data-jqol-filter-count]::after { content:attr(data-jqol-filter-count); border-radius:1em; background:#c2392f; color:#fff; padding:.12em .5em; margin-inline:.5em; font-size:.75rem; line-height:1.3; }
 [data-jqol-clear] { margin:1em auto; display:block; }

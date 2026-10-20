@@ -184,6 +184,18 @@ test('Jelly QoL settings expose two accessible tabs and save QoL preferences sep
     qol.click();assert.equal(panel.querySelector('#jqMediaPanel').hidden,true);assert.equal(panel.querySelector('#jqQoLPanel').hidden,false);assert.equal(qol.getAttribute('aria-selected'),'true');
     panel.querySelector('#jqFilterWarnings').checked=false;
     panel.querySelector('#jqQoLForm').dispatchEvent(new f.window.Event('submit',{bubbles:true,cancelable:true}));await pause();
-    const call=f.calls.find(c=>c.type==='POST'&&c.url.endsWith('/QoL'));assert.deepEqual(JSON.parse(call.data),{EnableFilterWarnings:false,AnimateFilterWarnings:true});
-    qol.dispatchEvent(new f.window.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));assert.equal(media.getAttribute('aria-selected'),'true');
+    const call=f.calls.find(c=>c.type==='POST'&&c.url.endsWith('/QoL'));assert.equal(JSON.parse(call.data).EnableFilterWarnings,false);assert.equal(JSON.parse(call.data).AnimateFilterWarnings,true);
+    qol.dispatchEvent(new f.window.KeyboardEvent('keydown',{key:'Home',bubbles:true}));assert.equal(media.getAttribute('aria-selected'),'true');
+});
+test('service settings and announcement fields save configured values independently, with four keyboard-accessible tabs',async t=>{
+ const f=fixture({ajax:async req=>req.url.endsWith('/QoL')?{EnableFilterWarnings:true,AnimateFilterWarnings:true,EnableHeaderLinks:true,HeaderLink1Name:'Original',HeaderLink1Url:'https://example.org/',EnableAnnouncement:false}:undefined});t.after(f.close);
+ const source=new JSDOM(fs.readFileSync(path.join(__dirname,'../src/configPage.html'),'utf8'));const panel=f.window.document.importNode(source.window.document.querySelector('#mediaHiderPage'),true);source.window.close();f.window.document.body.appendChild(panel);f.window.MediaHiderUI.initializePanel(panel);await pause();
+ assert.equal(panel.querySelectorAll('[role=tab]').length,4);panel.querySelector('#jqServicesTab').click();assert.equal(panel.querySelector('#jqServicesForm').closest('[role=tabpanel]').hidden,false);
+ panel.querySelector('#jqHeaderLink1Name').value='Requests';panel.querySelector('#jqHeaderLink1Url').value='https://example.net/request';panel.querySelector('#jqServicesForm').dispatchEvent(new f.window.Event('submit',{cancelable:true,bubbles:true}));await pause();
+ const saved=JSON.parse(f.calls.findLast(c=>c.type==='POST'&&c.url.endsWith('/QoL')).data);assert.equal(saved.HeaderLink1Name,'Requests');assert.equal(saved.HeaderLink1Url,'https://example.net/request');assert.equal(saved.EnableFilterWarnings,true);
+});
+test('JS Injector importer reads only supported literal values and never executes supplied code',t=>{
+ const f=fixture();t.after(f.close);f.window.importExecuted=false;
+ const data={CustomJavaScripts:[{Name:'Reports2',Enabled:true,Script:"const links = [['one','Changes','M0 0','https://example.org/'],['two','Requests','M1 1','https://example.net/']]; window.importExecuted=true;"},{Name:'PPM Fix',Enabled:true,Script:'throw new Error("must not execute")'},{Name:'Warning Pop-Up',Enabled:false,Script:"const CONFIG = {message: 'Line one\\nLine two', maxAppearances: 8, cooldownSeconds: 10, expiresAt: '2030-12-01T00:00:00+01:00', }; <h2>News</h2><li>First</li> link.textContent = 'Read more';"}]};
+ const result=f.window.MediaHiderUI.importSupportedScripts(data,{EnableFilterWarnings:true});assert.equal(result.HeaderLink2Url,'https://example.net/');assert.equal(result.EnableContextMenu,true);assert.equal(result.EnableAnnouncement,false);assert.equal(result.AnnouncementMessage,'Line one\nLine two');assert.equal(result.AnnouncementMaxAppearances,8);assert.equal(result.AnnouncementTitle,'News');assert.equal(f.window.importExecuted,false);assert.equal(result.EnableFilterWarnings,true);
 });

@@ -1,6 +1,6 @@
 {
   "name": "jelly-qol-ui-tests",
   "private": true,
-  "scripts": { "test": "node --test tests/Client.test.cjs tests/FilterWarnings.test.cjs" },
+  "scripts": { "test": "node --test tests/Client.test.cjs tests/FilterWarnings.test.cjs tests/WebExtras.test.cjs" },
   "devDependencies": { "jsdom": "26.1.0" }
 }

@@ -16,11 +16,6 @@ public sealed class GroupVisibilityRule
     public Guid ItemId { get; set; }
     public Guid[] GroupIds { get; set; } = [];
 }
-public sealed class QoLSettings
-{
-    public bool EnableFilterWarnings { get; set; } = true;
-    public bool AnimateFilterWarnings { get; set; } = true;
-}
 public sealed class PluginConfiguration : BasePluginConfiguration
 {
     public QoLSettings QoL { get; set; } = new();
@@ -33,7 +28,7 @@ public sealed class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public static Plugin Instance { get; private set; } = null!;
     public Plugin(IApplicationPaths paths, IXmlSerializer serializer) : base(paths, serializer) => Instance = this;
     public override string Name => "Jelly QoL";
-    public override string Description => "Quality-of-life features for Jellyfin 12.1: live filter warnings and movie/series visibility controls.";
+    public override string Description => "Quality-of-life features for Jellyfin 12.1: filter warnings, service shortcuts, announcements, pagination, search and media visibility.";
     public override Guid Id => new("6801f019-837b-4c81-a542-572e55d871ba");
     public IEnumerable<PluginPageInfo> GetPages() => [new() { Name = "mediahider", EmbeddedResourcePath = GetType().Namespace + ".src.configPage.html" }];
 }

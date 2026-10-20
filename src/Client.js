@@ -283,6 +283,136 @@
     observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'lang', 'aria-hidden'] });
     setInterval(schedule, 2000);
 
+    Object.assign(dictionaries.en, {
+        announcements:'Announcements',servicesHelp:'Configure header shortcuts. Leave a URL empty to hide that shortcut.',
+        importHelp:'Import supported settings from a JS Injector JSON export. Scripts are read as text and never executed.',importScripts:'Import JS Injector settings',importDone:'Settings imported and saved. Disable the corresponding scripts in JS Injector.',importError:'Could not import settings. Use a valid JS Injector JSON export and check its supported fields.',
+        announcementHelp:'Optional home-page message. Display limits and dismissal are stored separately for each account in this browser. Changing the message starts a new announcement.',
+        sectionFilters:'Active filters',sectionInterface:'Interface',sectionLinks:'Header shortcuts',sectionAnnouncement:'Announcement content',sectionSchedule:'Dates and display limits',
+        EnableFilterWarnings:'Warn about active filters',AnimateFilterWarnings:'Blink the active-filter icon',EnableContextMenu:'Right-click a title to open its native menu',
+        EnableSearchOrder:'Search order: Movies → Series → Discover on Seerr; hide empty sections',EnableToastIcons:'Fix missing icons in Jellyfin Enhanced notifications',EnablePagination:'Pagination at the top and bottom',
+        EnableHeaderLinks:'Show configured header shortcuts',HeaderLink1Name:'First shortcut — name',HeaderLink1Url:'First shortcut — URL',HeaderLink2Name:'Second shortcut — name',HeaderLink2Url:'Second shortcut — URL',
+        EnableAnnouncement:'Enable the announcement',AnnouncementTitle:'Title',AnnouncementMessage:'Message',AnnouncementDetails:'Bullet points (one per line)',AnnouncementUrl:'Button URL (optional)',AnnouncementLinkText:'Button text',AnnouncementPosition:'Position',top:'Below the header',bottom:'Bottom of the screen',
+        AnnouncementShowAfter:'Show from (optional)',AnnouncementExpiresAt:'Show until (optional)',AnnouncementDurationSeconds:'Auto-hide after seconds (0 = manual)',AnnouncementMaxAppearances:'Maximum appearances (0 = unlimited)',AnnouncementCooldownSeconds:'Minimum interval in seconds (0 = none)',AnnouncementResetHours:'Reset the appearance counter after hours (0 = never)',AnnouncementRepeatInSession:'Allow multiple appearances in one browser session',AnnouncementRememberDismiss:'Remember manual dismissal until the message changes',
+        limitsHelp:'Dates use this browser’s time zone. Counters are local to each account and browser. Keep the announcement disabled while preparing its contents.',qolValidation:'Check addresses, dates and display limits. URLs must start with http:// or https://.'
+    });
+    Object.assign(dictionaries.pl, {
+        announcements:'Komunikaty',servicesHelp:'Skonfiguruj skróty w nagłówku. Puste pole adresu ukrywa dany skrót.',
+        importHelp:'Wczytaj obsługiwane ustawienia z eksportu JSON wtyczki JS Injector. Skrypty są odczytywane jako tekst i nie są wykonywane.',importScripts:'Importuj ustawienia JS Injector',importDone:'Zaimportowano i zapisano ustawienia. Wyłącz odpowiadające im skrypty w JS Injector.',importError:'Nie udało się wczytać ustawień. Wybierz prawidłowy eksport JSON z JS Injector i sprawdź obsługiwane pola.',
+        announcementHelp:'Opcjonalny komunikat na stronie głównej. Limity i zamknięcie są zapamiętywane oddzielnie dla każdego konta w tej przeglądarce. Zmiana treści rozpoczyna nowy komunikat.',
+        sectionFilters:'Aktywne filtry',sectionInterface:'Interfejs',sectionLinks:'Skróty w nagłówku',sectionAnnouncement:'Treść komunikatu',sectionSchedule:'Terminy i limity wyświetlania',
+        EnableFilterWarnings:'Ostrzegaj o aktywnych filtrach',AnimateFilterWarnings:'Migająca ikona aktywnych filtrów',EnableContextMenu:'Prawy przycisk myszy otwiera menu tytułu',
+        EnableSearchOrder:'Wyszukiwanie: Filmy → Seriale → Odkryj na Seerr; pomijaj puste sekcje',EnableToastIcons:'Naprawiaj brakujące ikony powiadomień Jellyfin Enhanced',EnablePagination:'Paginacja u góry i na dole strony',
+        EnableHeaderLinks:'Pokazuj skonfigurowane skróty w nagłówku',HeaderLink1Name:'Pierwszy skrót — nazwa',HeaderLink1Url:'Pierwszy skrót — adres URL',HeaderLink2Name:'Drugi skrót — nazwa',HeaderLink2Url:'Drugi skrót — adres URL',
+        EnableAnnouncement:'Włącz komunikat',AnnouncementTitle:'Tytuł',AnnouncementMessage:'Treść',AnnouncementDetails:'Lista punktów (jeden w wierszu)',AnnouncementUrl:'Adres przycisku (opcjonalnie)',AnnouncementLinkText:'Tekst przycisku',AnnouncementPosition:'Położenie',top:'Pod nagłówkiem',bottom:'Na dole ekranu',
+        AnnouncementShowAfter:'Pokazuj od (opcjonalnie)',AnnouncementExpiresAt:'Pokazuj do (opcjonalnie)',AnnouncementDurationSeconds:'Ukryj po tylu sekundach (0 = ręcznie)',AnnouncementMaxAppearances:'Maksymalna liczba wyświetleń (0 = bez limitu)',AnnouncementCooldownSeconds:'Minimalny odstęp w sekundach (0 = brak)',AnnouncementResetHours:'Wyzeruj licznik wyświetleń po godzinach (0 = nigdy)',AnnouncementRepeatInSession:'Zezwalaj na kilka wyświetleń w jednej sesji przeglądarki',AnnouncementRememberDismiss:'Zapamiętaj ręczne zamknięcie do zmiany treści',
+        limitsHelp:'Daty używają strefy czasowej tej przeglądarki. Liczniki są oddzielne dla każdego konta i przeglądarki. Na czas przygotowania treści pozostaw komunikat wyłączony.',qolValidation:'Sprawdź adresy, daty i limity. Adresy muszą zaczynać się od http:// lub https://.'
+    });
+    function importSupportedScripts(input, current) {
+        if (!input || !Array.isArray(input.CustomJavaScripts) || input.CustomJavaScripts.length > 1000) throw new Error('Invalid script export');
+        const settings = { ...current }; let supported = 0;
+        // Parse only literal strings/numbers/booleans. Never evaluate JavaScript from the export.
+        function literal(value) {
+            if (value === 'null') return null; if (value === 'true' || value === 'false') return value === 'true';
+            if (/^\d+$/.test(value)) return Number(value);
+            if (value.startsWith('"')) return JSON.parse(value);
+            return value.slice(1,-1).replace(/\\(u[\da-fA-F]{4}|x[\da-fA-F]{2}|[\s\S])/g,(_,c)=>c[0]==='u'||c[0]==='x'?String.fromCharCode(parseInt(c.slice(1),16)):({n:'\n',r:'\r',t:'\t',b:'\b',f:'\f'}[c]??c));
+        }
+        const stringPattern = /'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g;
+        for (const entry of input.CustomJavaScripts) {
+            if (typeof entry.Script !== 'string' || entry.Script.length > 1000000) continue;
+            const source = entry.Script, name = String(entry.Name || '').toLowerCase();
+            if (name === 'reports2') {
+                const block = source.match(/const\s+links\s*=\s*\[([\s\S]*?)\];/)?.[1];
+                const strings = block?.match(stringPattern)?.map(literal);
+                if (strings?.length >= 8) { supported++;settings.EnableHeaderLinks = entry.Enabled === true;settings.HeaderLink1Name=strings[1];settings.HeaderLink1Url=strings[3];settings.HeaderLink2Name=strings[5];settings.HeaderLink2Url=strings[7]; }
+            }
+            const toggles = {'ppm fix':'EnableContextMenu','seerr search fix':'EnableSearchOrder','icon fix':'EnableToastIcons','sitepagination':'EnablePagination'};
+            if (toggles[name]) { supported++;settings[toggles[name]]=entry.Enabled===true; }
+            if (name === 'warning pop-up') {
+                supported++;settings.EnableAnnouncement=entry.Enabled===true;
+                const block=source.match(/const\s+CONFIG\s*=\s*\{([\s\S]*?)\};/)?.[1]||'';
+                const mapping={message:'AnnouncementMessage',showAfter:'AnnouncementShowAfter',expiresAt:'AnnouncementExpiresAt',visibleDurationSeconds:'AnnouncementDurationSeconds',maxAppearances:'AnnouncementMaxAppearances',cooldownSeconds:'AnnouncementCooldownSeconds',resetCounterAfterHours:'AnnouncementResetHours',allowMultipleAppearancesPerSession:'AnnouncementRepeatInSession',rememberManualDismiss:'AnnouncementRememberDismiss',openUrl:'AnnouncementUrl',position:'AnnouncementPosition'};
+                const pattern=/\b(\w+)\s*:\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|true|false|null|\d+)\s*[,\n]/g;let match;
+                while ((match=pattern.exec(block))) if(mapping[match[1]])settings[mapping[match[1]]]=literal(match[2]);
+                const strip=value=>value.replace(/<[^>]+>/g,'').trim();
+                settings.AnnouncementTitle=strip(source.match(/<h2>([\s\S]*?)<\/h2>/)?.[1]||'');
+                settings.AnnouncementDetails=Array.from(source.matchAll(/<li>([\s\S]*?)<\/li>/g),m=>strip(m[1])).join('\n');
+                const link=source.match(/link\.textContent\s*=\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/);if(link)settings.AnnouncementLinkText=literal(link[1]);
+            }
+        }
+        if(!supported)throw new Error('No supported scripts'); return settings;
+    }
+    function setupQoL(page, message, isBusy, setBusy) {
+        const schema = [
+            ['jqQoLForm','sectionFilters',[['EnableFilterWarnings','checkbox'],['AnimateFilterWarnings','checkbox']]],
+            ['jqQoLForm','sectionInterface',[['EnableContextMenu','checkbox'],['EnableSearchOrder','checkbox'],['EnableToastIcons','checkbox'],['EnablePagination','checkbox']]],
+            ['jqServicesForm','sectionLinks',[['EnableHeaderLinks','checkbox'],['HeaderLink1Name','text',80],['HeaderLink1Url','url',2048],['HeaderLink2Name','text',80],['HeaderLink2Url','url',2048]]],
+            ['jqAnnouncementForm','sectionAnnouncement',[['EnableAnnouncement','checkbox'],['AnnouncementTitle','text',160],['AnnouncementMessage','textarea',4000],['AnnouncementDetails','textarea',4000],['AnnouncementUrl','url',2048],['AnnouncementLinkText','text',120],['AnnouncementPosition','select']]],
+            ['jqAnnouncementForm','sectionSchedule',[['AnnouncementShowAfter','datetime-local'],['AnnouncementExpiresAt','datetime-local'],['AnnouncementDurationSeconds','number',86400],['AnnouncementMaxAppearances','number',100000],['AnnouncementCooldownSeconds','number',31536000],['AnnouncementResetHours','number',87600],['AnnouncementRepeatInSession','checkbox'],['AnnouncementRememberDismiss','checkbox']]]
+        ];
+        let model = {}, loaded = false;
+        const controls = new Map();
+        for (const [formId, title, fields] of schema) {
+            const form=page.querySelector('#'+formId); if(!form)continue;
+            const group=document.createElement('fieldset');group.style.cssText='border:1px solid #8885;border-radius:8px;padding:1.2em;margin:1.5em 0';
+            const legend=document.createElement('legend');legend.dataset.mhText=title;legend.textContent=t(title);group.appendChild(legend);
+            for(const [key,type,max] of fields){
+                const id=key==='EnableFilterWarnings'?'jqFilterWarnings':key==='AnimateFilterWarnings'?'jqFilterAnimation':'jq'+key;
+                const label=document.createElement('label');label.htmlFor=id;label.style.cssText=type==='checkbox'?'display:flex;align-items:center;gap:.75em;margin:1.1em 0':'display:block;margin:1.25em 0';
+                const caption=document.createElement('span');caption.dataset.mhText=key;caption.textContent=t(key);
+                let input;
+                if(type==='textarea') {input=document.createElement('textarea');input.rows=key==='AnnouncementMessage'?4:3;}
+                else if(type==='select'){input=document.createElement('select');for(const value of ['top','bottom']){const option=document.createElement('option');option.value=value;option.dataset.mhText=value;option.textContent=t(value);input.appendChild(option);}}
+                else {input=document.createElement('input');input.type=type;}
+                input.id=id;input.dataset.jqolSetting=key;input.dataset.jqolType=type;
+                if(type!=='checkbox')input.style.cssText='display:block;width:100%;box-sizing:border-box;margin-top:.45em;padding:.7em;background:#8881;border:1px solid #8887;border-radius:4px;color:inherit;font:inherit';
+                if(type==='number'){input.min='0';input.max=String(max);input.step='1';}else if(max)input.maxLength=max;
+                if(type==='url')input.placeholder='https://example.org/';
+                if(type==='checkbox')label.append(input,caption);else label.append(caption,input);
+                group.appendChild(label);controls.set(key,input);
+            }
+            form.appendChild(group);
+        }
+        function fill(settings){
+            model={...settings};
+            for(const [key,input] of controls){let value=settings[key];const type=input.dataset.jqolType;
+                if(type==='checkbox')input.checked=value===true;
+                else if(type==='datetime-local'){const date=value?new Date(value):null;input.value=date&&Number.isFinite(date.getTime())?new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16):'';}
+                else input.value=value==null?(type==='number'?'0':type==='select'?'top':''):String(value);
+            }
+            loaded=true;
+        }
+        function collect(form){
+            const result={...model};
+            for(const input of form.querySelectorAll('[data-jqol-setting]')){
+                const key=input.dataset.jqolSetting,type=input.dataset.jqolType;
+                if(type==='checkbox')result[key]=input.checked;
+                else if(type==='number'){const value=Number(input.value);if(!Number.isInteger(value)||value<0||value>Number(input.max))throw new Error('Invalid limit');result[key]=value;}
+                else if(type==='datetime-local'){const date=input.value?new Date(input.value):null;if(date&&!Number.isFinite(date.getTime()))throw new Error('Invalid date');result[key]=date?date.toISOString():null;}
+                else result[key]=input.value.trim();
+            }
+            return result;
+        }
+        async function save(settings){
+            await request('POST','QoL',settings); model=settings;
+            window.dispatchEvent(new CustomEvent('jellyqol:features',{detail:settings})); message(t('qolSaved'));
+        }
+        for(const id of ['jqQoLForm','jqServicesForm','jqAnnouncementForm']){
+            const form=page.querySelector('#'+id);if(!form)continue;
+            if(id==='jqAnnouncementForm'){const hint=document.createElement('p');hint.dataset.mhText='limitsHelp';hint.textContent=t('limitsHelp');form.appendChild(hint);}
+            const button=document.createElement('button');button.type='submit';button.className='raised button-submit emby-button';button.dataset.mhText='save';button.textContent=t('save');form.appendChild(button);
+            form.addEventListener('submit',async event=>{event.preventDefault();if(isBusy()||!loaded)return;setBusy(true);button.disabled=true;try{await save(collect(form));}catch(error){message(error.status===400||!error.status?t('qolValidation'):errorText(error),true);}finally{setBusy(false);button.disabled=false;}});
+        }
+        page.querySelector('#jqImportButton')?.addEventListener('click',()=>page.querySelector('#jqImportScripts').click());
+        page.querySelector('#jqImportScripts')?.addEventListener('change',async event=>{
+            const file=event.target.files?.[0];if(!file||isBusy())return;
+            if(file.size>5*1024*1024){message(t('importError'),true);return;}
+            setBusy(true);
+            try{const imported=importSupportedScripts(JSON.parse(await file.text()),model);await save(imported);fill(imported);message(t('importDone'));}
+            catch(_){message(t('importError'),true);}finally{setBusy(false);event.target.value='';}
+        });
+        return {load:async()=>{if(!controls.size)return;fill(await request('GET','QoL'));}};
+    }
     function initializePanel(page) {
         if (page.dataset.mediahiderReady) return;
         page.dataset.mediahiderReady = 'true';
@@ -375,31 +505,13 @@
             tab.addEventListener('click', () => selectTab(tab));
             tab.addEventListener('keydown', event => {
                 let next;
-                if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') next = tabs[(index + 1) % tabs.length];
+                if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') next = tabs[(index + (event.key === 'ArrowLeft' ? -1 : 1) + tabs.length) % tabs.length];
                 if (event.key === 'Home') next = tabs[0];
                 if (event.key === 'End') next = tabs[tabs.length - 1];
                 if (next) { event.preventDefault(); selectTab(next); next.focus(); }
             });
         });
-        const qolForm = page.querySelector('#jqQoLForm');
-        const warnings = page.querySelector('#jqFilterWarnings'); const animation = page.querySelector('#jqFilterAnimation');
-        async function loadQoL() {
-            if (!qolForm) return;
-            const settings = await request('GET', 'QoL');
-            warnings.checked = settings.EnableFilterWarnings; animation.checked = settings.AnimateFilterWarnings;
-        }
-        if (qolForm) qolForm.addEventListener('submit', async event => {
-            event.preventDefault();
-            if (busy) return;
-            busy = true; const button = qolForm.querySelector('button'); button.disabled = true;
-            const settings = { EnableFilterWarnings: warnings.checked, AnimateFilterWarnings: animation.checked };
-            try {
-                await request('POST', 'QoL', settings);
-                window.dispatchEvent(new CustomEvent('jellyqol:features', { detail: settings }));
-                message(t('qolSaved'));
-            } catch (error) { message(errorText(error), true); }
-            finally { busy = false; button.disabled = false; }
-        });
+        const qolPanel = setupQoL(page, message, () => busy, value => { busy = value; });
         function translate() {
             page.querySelectorAll('[data-mh-text]').forEach(n => { n.textContent = t(n.dataset.mhText); });
             query.placeholder = t('placeholder'); rows(results, currentResults); rows(hidden, currentHidden); renderGroups();
@@ -430,7 +542,7 @@
         async function shown() {
             translate(); message('');
             try {
-                await loadQoL(); await loadGroups(); await loadHidden(); const state = await request('GET', 'Status');
+                await qolPanel.load(); await loadGroups(); await loadHidden(); const state = await request('GET', 'Status');
                 if (state.WebIntegrationError) message(t('webError'), true);
                 else if (state.LastError) message(t('syncError'), true);
             } catch (error) { message(errorText(error), true); }
@@ -440,6 +552,6 @@
         languageObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
         shown();
     }
-    window.MediaHiderUI = { initializePanel, t };
+    window.MediaHiderUI = { initializePanel, t, importSupportedScripts };
     schedule();
 })();
