@@ -20,7 +20,7 @@ https://raw.githubusercontent.com/Wardf1/JellyfinMediaHider/main/manifest.json
 
 Install or update, restart Jellyfin, and reload the web client. The existing repository URL remains valid. For a server still running **Media Hider 1.3**, install **1.4** from the version selector and restart before upgrading further; 1.4 handles the name transition.
 
-Disable corresponding scripts in JS Injector after moving their functionality to Jelly QoL. File Transformation adds the scripts in memory; web-directory write permissions are unnecessary. Custom controls require the server-hosted web client. Native and separately hosted clients do not receive injected scripts.
+File Transformation adds the scripts in memory; web-directory write permissions are unnecessary. Custom controls require the server-hosted web client. Native and separately hosted clients do not receive injected scripts.
 
 ## Settings tabs
 
@@ -47,8 +47,6 @@ Each function can be enabled separately:
 ### Services
 
 Two configurable header shortcuts, each with its own **name and URL**. Empty addresses hide individual shortcuts. Links are hidden on login/setup pages and open in a new tab. HTTP/HTTPS addresses without embedded credentials are accepted; no personal addresses are built into the plugin.
-
-**Import JS Injector settings** reads supported fields from an exported JSON file: header links, right-click behavior, search order, toast icons, pagination and announcement configuration. Imported JavaScript is never executed. Existing Jelly QoL filter settings are preserved during import. Disable the corresponding old scripts after importing to avoid duplicate controls.
 
 ### Announcements
 
