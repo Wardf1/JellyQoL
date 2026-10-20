@@ -1,13 +1,21 @@
 [
   {
     "guid": "6801f019-837b-4c81-a542-572e55d871ba",
-    "name": "Media Hider",
-    "description": "Administrator controls for movie and series visibility with optional user groups and one-time per-group reveal schedules. Jellyfin 12.1; English and Polish. File Transformation is required for title-page controls.",
-    "overview": "Hide titles from all users or selected groups and schedule group reveals.",
+    "name": "Jelly QoL",
+    "description": "Quality-of-life features for Jellyfin 12.1: live active-filter warnings and optional animations, plus movie/series visibility, user groups and independent reveal schedules. English and Polish.",
+    "overview": "Live filter warnings and Media Hider controls in two settings tabs.",
     "owner": "Wardf1",
     "category": "General",
-    "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyfinMediaHider/main/assets/thumbnail.png",
+    "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyfinMediaHider/main/assets/jelly-qol.png",
     "versions": [
+      {
+        "version": "1.4.0.0",
+        "timestamp": "2026-10-20T18:16:23Z",
+        "changelog": "Renamed to Jelly QoL. Added live active-filter warnings for Jellyfin 12.1, optional animation, separate Media Hider and QoL tabs, and a simple text-only thumbnail. Existing visibility settings, groups and schedules are preserved.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "e836d9e74095cbbe4f5ac8095c5d8ea7",
+        "sourceUrl": "https://github.com/Wardf1/JellyfinMediaHider/releases/download/v1.4.0.0/JellyQoL_1.4.0.0.zip"
+      },
       {
         "version": "1.3.0.0",
         "timestamp": "2026-10-19T18:22:23Z",

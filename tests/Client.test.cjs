@@ -25,6 +25,7 @@ function fixture(options = {}) {
             if (route.startsWith('Items/')) return { ...states[route.split('/')[1]] };
             if (route === 'Hidden') return Object.values(states).filter(s => s.Hidden).map(s => ({ Id: s.TargetId, Name: s.TargetName, Type: s.Type, Hidden: true }));
             if (route === 'Status') return {};
+            if (route === 'QoL') return { EnableFilterWarnings: true, AnimateFilterWarnings: true };
             if (route === 'Groups') return { Groups: options.groups || [], Users: options.users || [] };
             if (route.startsWith('Search?')) return Object.values(states).map(s => ({ Id: s.TargetId, Name: s.TargetName, Type: s.Type, Hidden: s.Hidden }));
             if (route.startsWith('Hidden/')) {
@@ -171,4 +172,18 @@ test('each group editor saves its own optional date and time as UTC', async t =>
     page.querySelector('#mhGroupForm').dispatchEvent(new f.window.Event('submit',{bubbles:true,cancelable:true})); await pause();
     const call=f.calls.find(c=>c.type==='POST'&&c.url.endsWith('/Groups')); const data=JSON.parse(call.data);
     assert.equal(data.Name,'Group A'); assert.deepEqual(data.UserIds,[user.Id]); assert.equal(data.RevealAtUtc,new f.window.Date(future).toISOString());
+});
+
+test('Jelly QoL settings expose two accessible tabs and save QoL preferences separately', async t => {
+    const f=fixture();t.after(f.close);
+    const html=fs.readFileSync(path.join(__dirname,'../src/configPage.html'),'utf8');
+    const source=new JSDOM(html);const page=source.window.document.querySelector('#mediaHiderPage');
+    f.window.document.body.appendChild(f.window.document.importNode(page,true));source.window.close();
+    const panel=f.window.document.querySelector('#mediaHiderPage');f.window.MediaHiderUI.initializePanel(panel);await pause();
+    const media=panel.querySelector('#jqMediaTab'),qol=panel.querySelector('#jqQoLTab');assert.equal(media.textContent,'Media Hider');assert.equal(qol.textContent,'QoL');
+    qol.click();assert.equal(panel.querySelector('#jqMediaPanel').hidden,true);assert.equal(panel.querySelector('#jqQoLPanel').hidden,false);assert.equal(qol.getAttribute('aria-selected'),'true');
+    panel.querySelector('#jqFilterWarnings').checked=false;
+    panel.querySelector('#jqQoLForm').dispatchEvent(new f.window.Event('submit',{bubbles:true,cancelable:true}));await pause();
+    const call=f.calls.find(c=>c.type==='POST'&&c.url.endsWith('/QoL'));assert.deepEqual(JSON.parse(call.data),{EnableFilterWarnings:false,AnimateFilterWarnings:true});
+    qol.dispatchEvent(new f.window.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));assert.equal(media.getAttribute('aria-selected'),'true');
 });

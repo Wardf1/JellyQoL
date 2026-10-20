@@ -66,6 +66,18 @@ public sealed class VisibilityService(ILibraryManager library, IUserManager user
         }
         finally { _gate.Release(); }
     }
+    public async Task SaveQoLAsync(QoLSettings settings, CancellationToken ct)
+    {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            var previous = Config.QoL;
+            Config.QoL = new QoLSettings { EnableFilterWarnings = settings.EnableFilterWarnings, AnimateFilterWarnings = settings.AnimateFilterWarnings };
+            try { Plugin.Instance.SaveConfiguration(); }
+            catch { Config.QoL = previous; throw; }
+        }
+        finally { _gate.Release(); }
+    }
     private BaseItem RequireTitle(Guid id)
     {
         var item = library.GetItemById(id) ?? throw new KeyNotFoundException("Title not found.");
@@ -240,7 +252,7 @@ public sealed class VisibilityService(ILibraryManager library, IUserManager user
             {
                 try { await ReconcileAsync(stoppingToken).ConfigureAwait(false); }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-                catch (Exception ex) { logger.LogError(ex, "Media Hider synchronization failed and will be retried."); }
+                catch (Exception ex) { logger.LogError(ex, "Jelly QoL synchronization failed and will be retried."); }
                 await _wake.WaitAsync(TimeSpan.FromSeconds(15), stoppingToken).ConfigureAwait(false);
                 await Task.Delay(250, stoppingToken).ConfigureAwait(false);
             }

@@ -1,0 +1,1 @@
+Built-in imagegen, edit mode. Remove the crossed-out eye and purple slash. Only exact text Jelly QoL, centered in bold white sans-serif on a plain dark charcoal background. Landscape 16:9, generous empty space, no icons or decoration.

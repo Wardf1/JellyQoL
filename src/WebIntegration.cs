@@ -21,7 +21,7 @@ public sealed class WebIntegration(ILogger<WebIntegration> logger) : IHostedServ
         while (start >= 0)
         {
             var end = html.IndexOf(End, start, StringComparison.Ordinal);
-            if (end < 0) throw new InvalidDataException("Incomplete Media Hider script marker in index.html.");
+            if (end < 0) throw new InvalidDataException("Incomplete Jelly QoL script marker in index.html.");
             html = html.Remove(start, end + End.Length - start);
             start = html.IndexOf(Begin, StringComparison.Ordinal);
         }
@@ -32,7 +32,7 @@ public sealed class WebIntegration(ILogger<WebIntegration> logger) : IHostedServ
         var clean = Remove(html);
         var index = clean.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
         if (index < 0) throw new InvalidDataException("Jellyfin index.html has no closing body tag.");
-        return clean.Insert(index, Begin + "<script defer src=\"../MediaHider/Client.js?v=1.3.0.0\"></script>" + End);
+        return clean.Insert(index, Begin + "<script defer src=\"../MediaHider/Client.js?v=1.4.0.0\"></script><script defer src=\"../MediaHider/FilterWarnings.js?v=1.4.0.0\"></script>" + End);
     }
     // File Transformation deserializes its JSON payload into this public callback's parameter type.
     public static string TransformIndexHtml(TransformationInput input) => Inject(input.Contents);
@@ -70,8 +70,8 @@ public sealed class WebIntegration(ILogger<WebIntegration> logger) : IHostedServ
             .FirstOrDefault(assembly => assembly.GetName().Name == "Jellyfin.Plugin.FileTransformation");
         if (integration is null)
         {
-            LastError = "Install or enable File Transformation for Jellyfin 12.1, then restart Jellyfin. Media Hider does not modify web files.";
-            logger.LogWarning("Media Hider: {Message}", LastError);
+            LastError = "Install or enable File Transformation for Jellyfin 12.1, then restart Jellyfin. Jelly QoL does not modify web files.";
+            logger.LogWarning("Jelly QoL: {Message}", LastError);
             return Task.CompletedTask;
         }
         try
@@ -79,12 +79,12 @@ public sealed class WebIntegration(ILogger<WebIntegration> logger) : IHostedServ
             Register(integration);
             Registered = true;
             LastError = null;
-            logger.LogInformation("Media Hider: registered the in-memory index.html transformation with File Transformation.");
+            logger.LogInformation("Jelly QoL: registered the in-memory index.html transformation with File Transformation.");
         }
         catch (Exception ex)
         {
             LastError = "Could not register with File Transformation. Install a compatible version for Jellyfin 12.1, restart Jellyfin, and check the server log.";
-            logger.LogWarning(ex, "Media Hider: {Message}", LastError);
+            logger.LogWarning(ex, "Jelly QoL: {Message}", LastError);
         }
         return Task.CompletedTask;
     }

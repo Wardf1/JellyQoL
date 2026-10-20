@@ -6,6 +6,11 @@ namespace Jellyfin.Plugin.MediaHider;
 [Authorize(Policy = "RequiresElevation")]
 public sealed class MediaHiderController(VisibilityService service, WebIntegration web) : ControllerBase
 {
+    [HttpGet("QoL")]
+    public ActionResult<QoLSettings> QoL() => Ok(Plugin.Instance.Configuration.QoL);
+    [HttpPost("QoL")]
+    public async Task<ActionResult> SaveQoL([FromBody] QoLSettings settings, CancellationToken ct)
+    { await service.SaveQoLAsync(settings, ct).ConfigureAwait(false); return NoContent(); }
     [HttpGet("Search")]
     public async Task<ActionResult<IReadOnlyList<MediaEntry>>> Search([FromQuery] string query, CancellationToken ct)
     {

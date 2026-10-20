@@ -250,4 +250,15 @@ public sealed class VisibilityTests
         await f.Service.SetGroupsHiddenAsync(item.Id, [group], default); await f.Service.RestoreAllAsync(default);
         Assert.Equal(new[] { "original-tag" }, item.Tags); Assert.Empty(f.Plugin.Configuration.HiddenItemIds); Assert.Empty(f.Plugin.Configuration.GroupRules);
     }
+    [Fact]
+    public async Task QoLPreferencesDoNotModifyHiddenTitlesAndRollbackOnSaveFailure()
+    {
+        var f = new Fixture(); var id = Guid.NewGuid();
+        f.Plugin.Configuration.HiddenItemIds = [id];
+        await f.Service.SaveQoLAsync(new QoLSettings { EnableFilterWarnings = false, AnimateFilterWarnings = false }, default);
+        Assert.False(f.Plugin.Configuration.QoL.EnableFilterWarnings); Assert.Contains(id, f.Plugin.Configuration.HiddenItemIds);
+        f.Xml.Setup(x => x.SerializeToFile(It.IsAny<object>(), It.IsAny<string>())).Throws(new IOException("test failure"));
+        await Assert.ThrowsAsync<IOException>(() => f.Service.SaveQoLAsync(new QoLSettings(), default));
+        Assert.False(f.Plugin.Configuration.QoL.EnableFilterWarnings);
+    }
 }

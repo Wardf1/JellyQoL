@@ -14,7 +14,7 @@
             saving: 'Saving changes…', adminOnly: 'An administrator account is required.',
             failure: 'The operation failed. Refresh the list and check the Jellyfin log. Saved restrictions will be retried automatically.',
             tooShort: 'Enter at least 2 characters.', synced: 'Lists and restrictions are up to date.',
-            confirmRestore: 'Restore visibility of every title hidden by Media Hider?',
+            confirmRestore: 'Restore visibility of every title hidden by Jelly QoL?',
             restoredAll: 'All titles have been restored. You can uninstall the plugin.',
             syncError: 'The last synchronization failed. Check restrictions or inspect the Jellyfin log.',
             webError: 'The title-page controls require File Transformation. Install or enable a version compatible with Jellyfin 12.1, restart the server, and check the Jellyfin log if the message persists.'
@@ -31,14 +31,14 @@
             saving: 'Zapisywanie zmian…', adminOnly: 'Dostęp wymaga konta administratora.',
             failure: 'Operacja nie powiodła się. Odśwież listę i sprawdź log Jellyfin. Zapisane blokady zostaną ponowione automatycznie.',
             tooShort: 'Wpisz co najmniej 2 znaki.', synced: 'Listy i blokady są aktualne.',
-            confirmRestore: 'Przywrócić widoczność wszystkich tytułów ukrytych przez Media Hider?',
+            confirmRestore: 'Przywrócić widoczność wszystkich tytułów ukrytych przez Jelly QoL?',
             restoredAll: 'Przywrócono wszystkie tytuły. Możesz odinstalować wtyczkę.',
             syncError: 'Ostatnia synchronizacja nie powiodła się. Sprawdź blokady lub zajrzyj do logu Jellyfin.',
             webError: 'Kontrolki na stronie tytułu wymagają File Transformation. Zainstaluj lub włącz wersję zgodną z Jellyfin 12.1 i uruchom serwer ponownie. Jeśli komunikat pozostanie, sprawdź log Jellyfin.'
         }
     };
     Object.assign(dictionaries.en, {
-        groups: 'Optional user groups', groupsHelp: 'Without groups, hidden titles are visible only to administrators. With groups, choose all users or selected groups when hiding a title.',
+        filterWarnings: 'Warn about active filters', filterAnimation: 'Animate active-filter warnings', filtersScope: 'These settings apply to all accounts in the server web client. Other open clients update within 30 seconds.', qolSaved: 'QoL settings saved.', filtersHelp: 'Active-filter warnings update automatically in the Jellyfin 12.1 web client, for all accounts.', visibilityHeading: 'Media visibility', groups: 'Optional user groups', groupsHelp: 'Without groups, hidden titles are visible only to administrators. With groups, choose all users or selected groups when hiding a title.',
         groupName: 'Group name', groupMembers: 'Group members', saveGroup: 'Save group', cancelEdit: 'Cancel editing', edit: 'Edit', deleteGroup: 'Delete', noGroups: 'No groups configured. Hidden titles remain administrator-only.',
         noUsers: 'No non-administrator accounts are available.', members: 'Members: {count}', groupSaved: 'The group has been saved.', groupDeleted: 'The group has been deleted.',
         deleteConfirm: 'Delete this group? Titles hidden only for this group will become administrator-only.',
@@ -49,7 +49,7 @@
         save: 'Save', cancel: 'Cancel', changeAudience: 'Change hiding audience', hiddenGroups: 'Hidden from: {groups}'
     });
     Object.assign(dictionaries.pl, {
-        groups: 'Opcjonalne grupy użytkowników', groupsHelp: 'Bez grup ukryte tytuły widzą tylko administratorzy. Po utworzeniu grup przy ukrywaniu możesz wybrać wszystkich użytkowników lub wybrane grupy.',
+        filterWarnings: 'Ostrzegaj o aktywnych filtrach', filterAnimation: 'Animuj ostrzeżenia o aktywnych filtrach', filtersScope: 'Ustawienia dotyczą wszystkich kont w interfejsie WWW serwera. Pozostałe otwarte przeglądarki zaktualizują się w ciągu 30 sekund.', qolSaved: 'Zapisano ustawienia QoL.', filtersHelp: 'Ostrzeżenia o aktywnych filtrach aktualizują się automatycznie w interfejsie WWW Jellyfin 12.1, na wszystkich kontach.', visibilityHeading: 'Widoczność materiałów', groups: 'Opcjonalne grupy użytkowników', groupsHelp: 'Bez grup ukryte tytuły widzą tylko administratorzy. Po utworzeniu grup przy ukrywaniu możesz wybrać wszystkich użytkowników lub wybrane grupy.',
         groupName: 'Nazwa grupy', groupMembers: 'Członkowie grupy', saveGroup: 'Zapisz grupę', cancelEdit: 'Anuluj edycję', edit: 'Edytuj', deleteGroup: 'Usuń', noGroups: 'Nie utworzono grup. Ukryte tytuły pozostają dostępne tylko administratorom.',
         noUsers: 'Brak kont bez uprawnień administratora.', members: 'Członkowie: {count}', groupSaved: 'Zapisano grupę.', groupDeleted: 'Usunięto grupę.',
         deleteConfirm: 'Usunąć grupę? Tytuły ukryte wyłącznie dla tej grupy staną się dostępne tylko administratorom.',
@@ -155,7 +155,7 @@
             const glyph = icon(state.Hidden ? 'visibility_off' : 'visibility'); glyph.style.fontSize = '1.15em';
             const text = document.createElement('span'); text.textContent = state.Hidden && (state.GroupNames || []).length ? t('hiddenGroups').replace('{groups}', state.GroupNames.join(', ')) : t(state.Hidden ? 'hidden' : 'visible');
             badge.replaceChildren(glyph, text);
-            badge.title = state.Inherited ? t('inherited').replace('{name}', state.TargetName) : 'Media Hider';
+            badge.title = state.Inherited ? t('inherited').replace('{name}', state.TargetName) : 'Jelly QoL';
         });
     }
     async function chooseAudience(state) {
@@ -363,6 +363,43 @@
             await mutate(async () => { await request('POST', 'Groups', data); editGroup(null); }, 'groupSaved');
         });
         page.querySelector('#mhCancelGroup').addEventListener('click', () => editGroup(null));
+        const tabs = Array.from(page.querySelectorAll('[role="tab"]'));
+        function selectTab(tab) {
+            tabs.forEach(node => {
+                const selected = node === tab;
+                node.setAttribute('aria-selected', String(selected)); node.tabIndex = selected ? 0 : -1;
+                page.querySelector('#' + node.getAttribute('aria-controls')).hidden = !selected;
+            });
+        }
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => selectTab(tab));
+            tab.addEventListener('keydown', event => {
+                let next;
+                if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') next = tabs[(index + 1) % tabs.length];
+                if (event.key === 'Home') next = tabs[0];
+                if (event.key === 'End') next = tabs[tabs.length - 1];
+                if (next) { event.preventDefault(); selectTab(next); next.focus(); }
+            });
+        });
+        const qolForm = page.querySelector('#jqQoLForm');
+        const warnings = page.querySelector('#jqFilterWarnings'); const animation = page.querySelector('#jqFilterAnimation');
+        async function loadQoL() {
+            if (!qolForm) return;
+            const settings = await request('GET', 'QoL');
+            warnings.checked = settings.EnableFilterWarnings; animation.checked = settings.AnimateFilterWarnings;
+        }
+        if (qolForm) qolForm.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (busy) return;
+            busy = true; const button = qolForm.querySelector('button'); button.disabled = true;
+            const settings = { EnableFilterWarnings: warnings.checked, AnimateFilterWarnings: animation.checked };
+            try {
+                await request('POST', 'QoL', settings);
+                window.dispatchEvent(new CustomEvent('jellyqol:features', { detail: settings }));
+                message(t('qolSaved'));
+            } catch (error) { message(errorText(error), true); }
+            finally { busy = false; button.disabled = false; }
+        });
         function translate() {
             page.querySelectorAll('[data-mh-text]').forEach(n => { n.textContent = t(n.dataset.mhText); });
             query.placeholder = t('placeholder'); rows(results, currentResults); rows(hidden, currentHidden); renderGroups();
@@ -393,7 +430,7 @@
         async function shown() {
             translate(); message('');
             try {
-                await loadGroups(); await loadHidden(); const state = await request('GET', 'Status');
+                await loadQoL(); await loadGroups(); await loadHidden(); const state = await request('GET', 'Status');
                 if (state.WebIntegrationError) message(t('webError'), true);
                 else if (state.LastError) message(t('syncError'), true);
             } catch (error) { message(errorText(error), true); }
