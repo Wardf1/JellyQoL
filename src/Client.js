@@ -284,7 +284,7 @@
     setInterval(schedule, 2000);
 
     Object.assign(dictionaries.en, {
-        announcements:'Announcements',servicesHelp:'Configure header shortcuts. Leave a URL empty to hide that shortcut.',
+        testAnnouncement:'Test',testHelp:'Preview the current fields without saving, date restrictions or appearance limits.',testEmpty:'Enter a message to preview.',testFailed:'Could not load the preview. Reload the web client and try again.',announcements:'Announcements',servicesHelp:'Configure header shortcuts. Leave a URL empty to hide that shortcut.',
         importHelp:'Import supported settings from a JS Injector JSON export. Scripts are read as text and never executed.',importScripts:'Import JS Injector settings',importDone:'Settings imported and saved. Disable the corresponding scripts in JS Injector.',importError:'Could not import settings. Use a valid JS Injector JSON export and check its supported fields.',
         announcementHelp:'Optional home-page message. Display limits and dismissal are stored separately for each account in this browser. Changing the message starts a new announcement.',
         sectionFilters:'Active filters',sectionInterface:'Interface',sectionLinks:'Header shortcuts',sectionAnnouncement:'Announcement content',sectionSchedule:'Dates and display limits',
@@ -296,7 +296,7 @@
         limitsHelp:'Dates use this browser’s time zone. Counters are local to each account and browser. Keep the announcement disabled while preparing its contents.',qolValidation:'Check addresses, dates and display limits. URLs must start with http:// or https://.'
     });
     Object.assign(dictionaries.pl, {
-        announcements:'Komunikaty',servicesHelp:'Skonfiguruj skróty w nagłówku. Puste pole adresu ukrywa dany skrót.',
+        testAnnouncement:'Test',testHelp:'Podgląd bieżących pól bez zapisywania, ograniczeń daty i limitu wyświetleń.',testEmpty:'Wpisz treść komunikatu, aby go przetestować.',testFailed:'Nie udało się załadować podglądu. Odśwież interfejs i spróbuj ponownie.',announcements:'Komunikaty',servicesHelp:'Skonfiguruj skróty w nagłówku. Puste pole adresu ukrywa dany skrót.',
         importHelp:'Wczytaj obsługiwane ustawienia z eksportu JSON wtyczki JS Injector. Skrypty są odczytywane jako tekst i nie są wykonywane.',importScripts:'Importuj ustawienia JS Injector',importDone:'Zaimportowano i zapisano ustawienia. Wyłącz odpowiadające im skrypty w JS Injector.',importError:'Nie udało się wczytać ustawień. Wybierz prawidłowy eksport JSON z JS Injector i sprawdź obsługiwane pola.',
         announcementHelp:'Opcjonalny komunikat na stronie głównej. Limity i zamknięcie są zapamiętywane oddzielnie dla każdego konta w tej przeglądarce. Zmiana treści rozpoczyna nowy komunikat.',
         sectionFilters:'Aktywne filtry',sectionInterface:'Interfejs',sectionLinks:'Skróty w nagłówku',sectionAnnouncement:'Treść komunikatu',sectionSchedule:'Terminy i limity wyświetlania',
@@ -397,10 +397,36 @@
             await request('POST','QoL',settings); model=settings;
             window.dispatchEvent(new CustomEvent('jellyqol:features',{detail:settings})); message(t('qolSaved'));
         }
+        let previewLoader;
+        async function previewModule() {
+            if (window.JellyQoLExtras?.previewAnnouncement) return window.JellyQoLExtras;
+            if (!previewLoader) previewLoader = new Promise((resolve, reject) => {
+                const script = document.createElement('script'); script.src = apiClient().getUrl('MediaHider/WebExtras.js') + '?v=1.5.1.0';
+                script.onload = () => window.JellyQoLExtras?.previewAnnouncement ? resolve(window.JellyQoLExtras) : reject(new Error('Preview unavailable'));
+                script.onerror = () => { script.remove(); previewLoader = null; reject(new Error('Preview unavailable')); };
+                document.head.appendChild(script);
+            });
+            return previewLoader;
+        }
         for(const id of ['jqQoLForm','jqServicesForm','jqAnnouncementForm']){
             const form=page.querySelector('#'+id);if(!form)continue;
             if(id==='jqAnnouncementForm'){const hint=document.createElement('p');hint.dataset.mhText='limitsHelp';hint.textContent=t('limitsHelp');form.appendChild(hint);}
             const button=document.createElement('button');button.type='submit';button.className='raised button-submit emby-button';button.dataset.mhText='save';button.textContent=t('save');form.appendChild(button);
+            if (id === 'jqAnnouncementForm') {
+                const test = document.createElement('button'); test.id = 'jqTestAnnouncement'; test.type = 'button'; test.className = 'raised emby-button'; test.style.cssText = 'margin-inline-start:12px;display:inline-flex;align-items:center;gap:.5em';
+                const label = document.createElement('span'); label.dataset.mhText = 'testAnnouncement'; label.textContent = t('testAnnouncement'); test.append(icon('visibility'), label); form.appendChild(test);
+                const help = document.createElement('p'); help.dataset.mhText = 'testHelp'; help.textContent = t('testHelp'); help.style.cssText = 'font-size:.9em;opacity:.7;margin-top:1em'; form.appendChild(help);
+                test.addEventListener('click', async () => {
+                    if (isBusy() || !loaded) return;
+                    let current;
+                    try { current = collect(form); } catch (_) { message(t('qolValidation'), true); return; }
+                    if (!current.AnnouncementMessage?.trim()) { message(t('testEmpty'), true); return; }
+                    test.disabled = true;
+                    try { const module = await previewModule(); if (!module.previewAnnouncement(current)) message(t('testEmpty'), true); }
+                    catch (_) { message(t('testFailed'), true); }
+                    finally { test.disabled = false; }
+                });
+            }
             form.addEventListener('submit',async event=>{event.preventDefault();if(isBusy()||!loaded)return;setBusy(true);button.disabled=true;try{await save(collect(form));}catch(error){message(error.status===400||!error.status?t('qolValidation'):errorText(error),true);}finally{setBusy(false);button.disabled=false;}});
         }
         page.querySelector('#jqImportButton')?.addEventListener('click',()=>page.querySelector('#jqImportScripts').click());

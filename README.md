@@ -22,6 +22,8 @@ Install or update, restart Jellyfin, and reload the web client. If your Jellyfin
 
 File Transformation adds the scripts in memory; web-directory write permissions are unnecessary. Custom controls require the server-hosted web client. Native and separately hosted clients do not receive injected scripts.
 
+Open **Dashboard → Plugins → Jelly QoL** in the sidebar for direct access to the settings.
+
 ## Settings tabs
 
 ### Media Hider
@@ -51,6 +53,8 @@ Two configurable header shortcuts, each with its own **name and URL**. Empty add
 ### Announcements
 
 An optional home-page announcement, disabled by default. Configure its title, message, bullet points, button label/URL, top/bottom position, start/end dates, automatic hide duration, appearance limit, cooldown, counter-reset period, session repeats and remembered dismissal. Dates use the browser's time zone and are stored in UTC. Zero disables an individual numeric limit as described beside each field.
+
+Use **Test** to preview the current form values before saving. The preview works with a disabled announcement, ignores dates and limits, and does not update appearance counters or dismissal state. Only the current administrator sees it.
 
 Counters and dismissal are separate for each account **in each browser**. A changed message starts a new announcement. Content is rendered as plain text; arbitrary HTML and scripts are unsupported. Scheduling, limits and expiry are checked while the web client is open.
 

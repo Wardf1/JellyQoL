@@ -61,3 +61,15 @@ test('a delayed settings response cannot undo preferences saved after the reques
  let complete;const f=fixture(t,header,{}, {ajax:()=>new Promise(resolve=>{complete=resolve})});await pause();
  f.change({EnableHeaderLinks:false});complete({...f.settings,EnableHeaderLinks:true});await pause();assert.equal(f.d.querySelectorAll('.jqol-service-link').length,0);
 });
+test('announcement preview bypasses disabled state and expired dates without touching counters, session or saved settings',async t=>{
+ const f=fixture(t,'<button id="test">Test</button>',{EnableAnnouncement:false},{route:'/configurationpage?name=mediahider'});await pause();
+ const beforeLocal=JSON.stringify(Object.entries(f.w.localStorage)),beforeSession=JSON.stringify(Object.entries(f.w.sessionStorage));
+ f.d.querySelector('#test').focus();const result=f.w.JellyQoLExtras.previewAnnouncement({...f.settings,AnnouncementTitle:'Unsaved preview',AnnouncementMessage:'Preview <script>bad()</script>',AnnouncementExpiresAt:'2000-01-01T00:00:00Z',AnnouncementMaxAppearances:1});
+ assert.equal(result,true);await pause();const preview=f.d.querySelector('#jqol-announcement-preview');assert.ok(preview);assert.equal(preview.querySelector('h2').textContent,'Unsaved preview');assert.equal(preview.querySelector('script'),null);assert.equal(f.d.querySelector('#jqol-announcement'),null);
+ preview.querySelector('button').click();assert.equal(f.d.activeElement.id,'test');assert.equal(f.settings.EnableAnnouncement,false);assert.equal(JSON.stringify(Object.entries(f.w.localStorage)),beforeLocal);assert.equal(JSON.stringify(Object.entries(f.w.sessionStorage)),beforeSession);
+});
+test('preview works before settings finish loading and is removed when leaving the settings page',async t=>{
+ let complete;const f=fixture(t,'',{}, {route:'/configurationpage?name=mediahider',ajax:()=>new Promise(resolve=>{complete=resolve})});
+ assert.equal(f.w.JellyQoLExtras.previewAnnouncement({AnnouncementMessage:'Preview immediately',AnnouncementPosition:'bottom'}),true);await pause();assert.ok(f.d.querySelector('#jqol-announcement-preview'));assert.equal(f.d.querySelector('#jqol-announcement-preview').style.bottom,'16px');
+ complete(f.settings);await pause();assert.ok(f.d.querySelector('#jqol-announcement-preview'));f.w.location.hash='/movies';await pause();assert.equal(f.d.querySelector('#jqol-announcement-preview'),null);
+});

@@ -32,7 +32,7 @@ public sealed class WebIntegration(ILogger<WebIntegration> logger) : IHostedServ
         var clean = Remove(html);
         var index = clean.LastIndexOf("</body>", StringComparison.OrdinalIgnoreCase);
         if (index < 0) throw new InvalidDataException("Jellyfin index.html has no closing body tag.");
-        return clean.Insert(index, Begin + "<script defer src=\"../MediaHider/Client.js?v=1.5.0.0\"></script><script defer src=\"../MediaHider/FilterWarnings.js?v=1.5.0.0\"></script><script defer src=\"../MediaHider/WebExtras.js?v=1.5.0.0\"></script>" + End);
+        return clean.Insert(index, Begin + "<script defer src=\"../MediaHider/Client.js?v=1.5.1.0\"></script><script defer src=\"../MediaHider/FilterWarnings.js?v=1.5.1.0\"></script><script defer src=\"../MediaHider/WebExtras.js?v=1.5.1.0\"></script>" + End);
     }
     // File Transformation deserializes its JSON payload into this public callback's parameter type.
     public static string TransformIndexHtml(TransformationInput input) => Inject(input.Contents);

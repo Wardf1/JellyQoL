@@ -3,7 +3,7 @@
     if (window.JellyQoLExtras) return;
     let settings = null, identity = '', loading = false, generation = 0, timer = null, disposed = false;
     const intervals = [];
-    let pager = null, bannerKey = '', bannerTimer = null;
+    let pager = null, bannerKey = '', bannerTimer = null, preview = null;
     const memory = new Map(), searchNodes = new Set();
     const icons = {
         '{{icon:jellyfish}}': 'M4 4h16l-6 7v7l-4 2v-9z', '{{icon.audio}}': 'M3 9h4l5-4v14l-5-4H3zM16 8q6 4 0 8',
@@ -11,8 +11,8 @@
     };
     const lang = () => /^pl(?:[-_]|$)/i.test(document.documentElement.lang || navigator.language || '') ? 'pl' : 'en';
     const words = () => lang() === 'pl'
-        ? { previous: 'Poprzednia strona', next: 'Następna strona', of: 'z', pager: 'Nawigacja stron', close: 'Zamknij komunikat', details: 'Więcej informacji', announcement: 'Komunikat' }
-        : { previous: 'Previous page', next: 'Next page', of: 'of', pager: 'Page navigation', close: 'Dismiss announcement', details: 'More information', announcement: 'Announcement' };
+        ? { previous: 'Poprzednia strona', next: 'Następna strona', of: 'z', pager: 'Nawigacja stron', close: 'Zamknij komunikat', details: 'Więcej informacji', announcement: 'Komunikat', preview: 'Podgląd', previewOnly: 'Ten podgląd jest widoczny tylko dla Ciebie.' }
+        : { previous: 'Previous page', next: 'Next page', of: 'of', pager: 'Page navigation', close: 'Dismiss announcement', details: 'More information', announcement: 'Announcement', preview: 'Preview', previewOnly: 'This preview is only visible to you.' };
     const route = () => (location.hash.replace(/^#!?/, '').split('?')[0] || '/').toLowerCase().replace(/\/$/, '') || '/';
     const publicPage = () => /^\/(?:login|selectserver|addserver|forgotpassword|forgotpasswordpin|disclaimer|quickconnect|wizard)(?:\b|\/)/.test(route());
     const currentIdentity = () => {
@@ -202,33 +202,75 @@
         if (!config.AnnouncementRepeatInSession && sessionShown(key)) return;
         if (config.AnnouncementMaxAppearances > 0 && (state.count || 0) >= config.AnnouncementMaxAppearances) return;
         if (config.AnnouncementCooldownSeconds > 0 && state.last && now - state.last < config.AnnouncementCooldownSeconds * 1000) return;
-        const banner = document.createElement('section'); banner.id = 'jqol-announcement'; banner.setAttribute('aria-label', words().announcement);
+        renderAnnouncement(config, false, event => {
+            event.preventDefault();
+            if (config.AnnouncementRememberDismiss) saveState(key, { ...stateFor(key), dismissed: true });
+            removeBanner();
+        });
+        saveState(key,{...state,first:state.first||now,last:now,count:(state.count||0)+1}); sessionShown(key,true);
+        if(config.AnnouncementDurationSeconds>0) bannerTimer=setTimeout(()=>{bannerTimer=null;document.getElementById('jqol-announcement')?.remove();},config.AnnouncementDurationSeconds*1000);
+    }
+    function renderAnnouncement(config, isPreview, onClose) {
+        const banner = document.createElement('section');
+        banner.id = isPreview ? 'jqol-announcement-preview' : 'jqol-announcement';
+        banner.className = 'jqol-announcement';
+        banner.setAttribute('aria-label', isPreview ? words().preview : words().announcement);
         const body = document.createElement('div'); body.setAttribute('role','status'); body.setAttribute('aria-live','polite');
-        if (config.AnnouncementTitle) { const heading = document.createElement('h2'); heading.textContent = config.AnnouncementTitle; body.appendChild(heading); }
-        const message = document.createElement('p'); message.textContent = config.AnnouncementMessage; body.appendChild(message);
+        const headingRow = document.createElement('div'); headingRow.className = 'jqol-announcement-heading';
+        const mark = document.createElement('span'); mark.className = 'jqol-announcement-mark'; mark.appendChild(svg('M12 8v4m0 4h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18'));
+        const headingText = document.createElement('div');
+        const eyebrow = document.createElement('div'); eyebrow.className = 'jqol-announcement-eyebrow'; eyebrow.textContent = isPreview ? words().preview : words().announcement; headingText.appendChild(eyebrow);
+        if (config.AnnouncementTitle) { const heading = document.createElement('h2'); heading.textContent = config.AnnouncementTitle; headingText.appendChild(heading); }
+        headingRow.append(mark, headingText); body.appendChild(headingRow);
+        const message = document.createElement('p'); message.className = 'jqol-announcement-message'; message.textContent = config.AnnouncementMessage; body.appendChild(message);
         if (config.AnnouncementDetails) { const list = document.createElement('ul'); for (const line of config.AnnouncementDetails.split('\n').map(x=>x.trim()).filter(Boolean)) { const item = document.createElement('li'); item.textContent = line; list.appendChild(item); } body.appendChild(list); }
         banner.appendChild(body);
         const url = safeUrl(config.AnnouncementUrl);
-        if (url) { const link = document.createElement('a'); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = config.AnnouncementLinkText || words().details; banner.appendChild(link); }
-        function close(event) { event.preventDefault(); if (config.AnnouncementRememberDismiss) saveState(key, { ...stateFor(key), dismissed: true }); removeBanner(); }
-        const closeButton = document.createElement('button'); closeButton.type='button'; closeButton.className='jqol-announcement-close';closeButton.textContent='×';closeButton.setAttribute('aria-label',words().close);closeButton.addEventListener('click',close);banner.appendChild(closeButton);
-        banner.addEventListener('keydown', event=>{ if(event.key==='Escape') close(event); });
-        document.body.appendChild(banner); positionBanner(banner);
-        saveState(key,{...state,first:state.first||now,last:now,count:(state.count||0)+1}); sessionShown(key,true);
-        if(config.AnnouncementDurationSeconds>0) bannerTimer=setTimeout(()=>{bannerTimer=null;banner.remove();},config.AnnouncementDurationSeconds*1000);
+        if (url) {
+            const link = document.createElement('a'); link.className = 'jqol-announcement-action'; link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+            const label = document.createElement('span'); label.textContent = config.AnnouncementLinkText || words().details;
+            link.append(label, svg('M7 17 17 7M7 7h10v10')); banner.appendChild(link);
+        }
+        if (isPreview) { const note = document.createElement('p'); note.className = 'jqol-announcement-preview-note'; note.textContent = words().previewOnly; banner.appendChild(note); }
+        const closeButton = document.createElement('button'); closeButton.type='button'; closeButton.className='jqol-announcement-close';closeButton.appendChild(svg('M6 6l12 12M18 6 6 18'));closeButton.setAttribute('aria-label',words().close);closeButton.addEventListener('click',onClose);banner.appendChild(closeButton);
+        banner.addEventListener('keydown', event=>{ if(event.key==='Escape') {event.stopPropagation();onClose(event);} });
+        document.body.appendChild(banner); positionBanner(banner, config);
+        return closeButton;
     }
-    function positionBanner(banner) {
-        const bottom = settings?.AnnouncementPosition === 'bottom'; let top = 16;
+    function removePreview(restoreFocus = false) {
+        const returnFocus = preview?.returnFocus;
+        document.getElementById('jqol-announcement-preview')?.remove(); preview = null;
+        if (restoreFocus && returnFocus?.isConnected) returnFocus.focus();
+    }
+    function previewAnnouncement(config) {
+        if (!currentIdentity() || !config?.AnnouncementMessage?.trim()) return false;
+        const key = currentIdentity();
+        if (identity !== key) { generation++; identity = key; settings = null; cleanup(); loadSettings(); }
+        removePreview();
+        preview = { config: { ...config }, location: location.href, returnFocus: document.activeElement };
+        const closeButton = renderAnnouncement(preview.config, true, event => { event.preventDefault(); removePreview(true); });
+        closeButton.focus(); return true;
+    }
+    function updatePreview() {
+        if (!preview) return;
+        if (!currentIdentity() || preview.location !== location.href) removePreview();
+        else {
+            const banner = document.getElementById('jqol-announcement-preview');
+            if (banner) positionBanner(banner, preview.config);
+        }
+    }    function positionBanner(banner, config = settings) {
+        const bottom = config?.AnnouncementPosition === 'bottom'; let top = 16;
         if (!bottom) for (const header of document.querySelectorAll('.MuiAppBar-root,.skinHeader,.MuiToolbar-root')) { const rect=header.getBoundingClientRect();if(visible(header)&&rect.top<=5)top=Math.max(top,Math.round(rect.bottom)+16); }
         if(banner.style.top!==(bottom?'auto':top+'px'))banner.style.top=bottom?'auto':top+'px';
         if(banner.style.bottom!==(bottom?'16px':'auto'))banner.style.bottom=bottom?'16px':'auto';
     }
-    function cleanup() { document.querySelectorAll('.jqol-service-link').forEach(node=>node.remove());clearSearch();pagerCleanup();removeBanner(); }
+    function cleanup() { document.querySelectorAll('.jqol-service-link').forEach(node=>node.remove());clearSearch();pagerCleanup();removeBanner();removePreview(); }
     function update() {
         const key=currentIdentity();
         if(key!==identity){identity=key;generation++;settings=null;loading=false;cleanup();if(key)loadSettings();}
-        if(!key||!settings){cleanup();return;}
-        links();toastIcons();search();pagination();announcement();
+        if(!key){cleanup();return;}
+        if(!settings){if(preview)updatePreview();else cleanup();return;}
+        links();toastIcons();search();pagination();announcement();updatePreview();
     }
     function schedule() {
         if(disposed || typeof document === 'undefined' || !document.body)return;
@@ -245,8 +287,10 @@
 [data-jqol-search-list]{display:flex!important;flex-direction:column!important}[data-jqol-search-rank="0"]{order:0}[data-jqol-search-rank="1"]{order:1}[data-jqol-search-rank="2"]{order:2}[data-jqol-search-rank="3"]{order:3}[data-jqol-search-empty]{display:none!important}
 .jqol-native-arrow{display:none!important}.jqol-native-counter{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip-path:inset(50%)!important;pointer-events:none!important}
 .jqol-pagination{display:inline-flex;align-items:center;vertical-align:middle;max-width:100%;color:inherit}.jqol-page-track{display:inline-flex;align-items:center;gap:4px;padding:5px;border:1px solid #ffffff25;border-radius:14px;background:var(--wardf-surface,#252525);box-shadow:0 6px 20px #0004}.jqol-pagination button{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;min-width:42px;background:transparent;color:inherit;border:0;border-radius:10px;cursor:pointer}.jqol-pagination button:hover:not(:disabled){background:#ffffff15}.jqol-pagination button:focus-visible{outline:2px solid #00a4dc}.jqol-pagination button:disabled{opacity:.35;cursor:default}.jqol-pagination svg{width:20px;height:20px}.jqol-page-count{font-size:13px;font-variant-numeric:tabular-nums;padding:0 12px;white-space:nowrap}.jqol-pagination-bottom{display:flex;justify-content:center;width:100%;flex:0 0 100%;grid-column:1/-1;clear:both;padding:28px 0;padding-bottom:max(28px,env(safe-area-inset-bottom))}
-#jqol-announcement{position:fixed;right:max(16px,env(safe-area-inset-right));width:min(420px,calc(100vw - 32px));max-height:calc(100dvh - 100px);overflow:auto;box-sizing:border-box;z-index:9999;padding:24px;border:1px solid #ffffff30;border-radius:18px;background:var(--wardf-surface,#252525);color:#f5f5f5;box-shadow:0 18px 60px #0007;font:15px/1.6 system-ui,sans-serif}#jqol-announcement h2{margin:0 32px 12px 0;font-size:24px}#jqol-announcement p{margin:0;white-space:pre-wrap}#jqol-announcement ul{padding-left:1.4em}#jqol-announcement a{display:inline-block;margin-top:16px;padding:8px 14px;border-radius:8px;background:#00a4dc;color:#fff;text-decoration:none}#jqol-announcement .jqol-announcement-close{position:absolute;top:8px;right:8px;width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:inherit;font-size:28px;cursor:pointer}#jqol-announcement .jqol-announcement-close:hover{background:#ffffff15}#jqol-announcement :focus-visible{outline:2px solid #00a4dc;outline-offset:2px}
-@media(max-width:480px){.jqol-page-count{padding:0 6px;font-size:12px}.jqol-page-track{gap:0}.jqol-pagination button{width:36px;min-width:36px}}
+.jqol-announcement{--jqol-accent:#3bb8e8;position:fixed;right:max(18px,env(safe-area-inset-right));width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 112px);overflow:auto;box-sizing:border-box;z-index:9999;padding:28px;border:1px solid #ffffff1c;border-top:3px solid var(--jqol-accent);border-radius:22px;background:radial-gradient(ellipse at top left,#2377a61a,transparent 65%),#191d26;color:#f4f7fb;box-shadow:0 24px 72px #0007,0 4px 16px #0003;font:14px/1.65 system-ui,sans-serif;overflow-wrap:anywhere;animation:jqol-announcement-in .22s ease-out}
+.jqol-announcement *{box-sizing:border-box}.jqol-announcement-heading{display:flex;align-items:center;gap:14px;padding-right:30px;margin-bottom:20px}.jqol-announcement-mark{display:flex;align-items:center;justify-content:center;width:44px;height:44px;flex:0 0 44px;border:1px solid #3bb8e82b;border-radius:14px;background:#3bb8e812;color:var(--jqol-accent)}.jqol-announcement-mark svg{width:24px;height:24px}.jqol-announcement-eyebrow{margin-bottom:4px;color:var(--jqol-accent);font-size:10px;font-weight:750;letter-spacing:.14em;text-transform:uppercase}.jqol-announcement h2{margin:0;font-size:23px;line-height:1.25;letter-spacing:-.025em;font-weight:700;color:#f4f7fb}.jqol-announcement .jqol-announcement-message{margin:0;white-space:pre-wrap;color:#c6cdd9;font-size:14px;line-height:1.75}.jqol-announcement ul{display:grid;gap:8px;margin:20px 0 0;padding:14px 16px;list-style:none;border:1px solid #ffffff0e;border-radius:12px;background:#ffffff03}.jqol-announcement li{position:relative;padding-left:23px;color:#dce3ed;font-size:13px;line-height:1.65}.jqol-announcement li::before{content:'✓';position:absolute;left:0;color:var(--jqol-accent);font-weight:700}
+.jqol-announcement .jqol-announcement-action{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px;padding:12px 16px;min-height:46px;border:1px solid #ffffff12;border-radius:11px;background:linear-gradient(110deg,#148abc,#2975c1);color:#fff;text-decoration:none;font-size:13px;font-weight:650;box-shadow:0 4px 14px #0078b51a;transition:filter .15s}.jqol-announcement-action:hover{filter:brightness(1.13)}.jqol-announcement-action svg{width:18px;height:18px;flex:0 0 18px}.jqol-announcement .jqol-announcement-close{position:absolute;top:10px;right:10px;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid transparent;border-radius:50%;background:transparent;color:#8e9aaa;cursor:pointer}.jqol-announcement-close svg{width:17px;height:17px}.jqol-announcement .jqol-announcement-close:hover{background:#ffffff0a;border-color:#ffffff0c;color:#f4f7fb}.jqol-announcement :focus-visible{outline:2px solid var(--jqol-accent);outline-offset:3px}.jqol-announcement .jqol-announcement-preview-note{margin:16px 0 0;color:#8e9aaa;font-size:11px;text-align:center}.jqol-announcement:has(.jqol-announcement-preview-note){border-top-color:#bb9bff}.jqol-announcement:has(.jqol-announcement-preview-note) .jqol-announcement-eyebrow{color:#bb9bff}
+@keyframes jqol-announcement-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}@media(prefers-reduced-motion:reduce){.jqol-announcement{animation:none}.jqol-announcement .jqol-announcement-action{transition:none}}@media(max-width:480px){.jqol-announcement{padding:22px;border-radius:18px;right:16px}.jqol-announcement h2{font-size:21px}.jqol-announcement-heading{gap:12px}.jqol-announcement-mark{width:38px;height:38px;flex-basis:38px;border-radius:12px}}@media(max-width:480px){.jqol-page-count{padding:0 6px;font-size:12px}.jqol-page-track{gap:0}.jqol-pagination button{width:36px;min-width:36px}}
 `;
         document.head.appendChild(style);observer.observe(document.body,options);schedule();
         intervals.push(setInterval(()=>{if(!document.hidden)schedule();},1000),setInterval(()=>{if(!document.hidden)loadSettings();},30000));
@@ -255,6 +299,6 @@
     for(const type of ['hashchange','popstate','resize','storage','pageshow'])window.addEventListener(type,schedule);
     for(const type of ['viewshow','visibilitychange'])document.addEventListener(type,schedule,true);
     window.addEventListener('jellyqol:features',event=>{if(currentIdentity()&&event.detail){generation++;settings={...settings,...event.detail};schedule();}});
-    window.JellyQoLExtras={refresh:schedule,dispose:()=>{disposed=true;generation++;observer.disconnect();clearTimeout(timer);intervals.forEach(clearInterval);cleanup();}};
+    window.JellyQoLExtras={refresh:schedule,previewAnnouncement,dispose:()=>{disposed=true;generation++;observer.disconnect();clearTimeout(timer);intervals.forEach(clearInterval);cleanup();}};
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

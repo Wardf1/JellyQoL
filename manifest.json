@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.5.1.0",
+        "timestamp": "2026-10-20T19:41:32Z",
+        "changelog": "Added a native Jelly QoL settings shortcut in the administrator sidebar. Announcement Test previews unsaved fields without saving, counting views or changing dismissal state. Redesigned responsive announcement cards with clearer typography, icons, bullet details and a prominent action button.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "a07ab318c7080f17208bea1d5b684430",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.5.1.0/JellyQoL_1.5.1.0.zip"
+      },
+      {
         "version": "1.5.0.0",
         "timestamp": "2026-10-20T18:57:40Z",
         "changelog": "Blinking filter icon without toolbar text. Added configurable header shortcuts, native right-click menus, Movies/Series/Seerr search ordering with empty-section handling, toast icons, top/bottom pagination, optional scheduled announcements. Four settings tabs: Media Hider, QoL, Services, Announcements. Names and URLs are saved in server configuration; no personal defaults are bundled.",

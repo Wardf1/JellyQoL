@@ -65,7 +65,7 @@
     var page = document.querySelector('#mediaHiderPage');
     if (window.MediaHiderUI) { window.MediaHiderUI.initializePanel(page); return; }
     var loader = document.createElement('script');
-    loader.src = ApiClient.getUrl('MediaHider/Client.js') + '?v=1.5.0.0';
+    loader.src = ApiClient.getUrl('MediaHider/Client.js') + '?v=1.5.1.0';
     loader.onload = function () { window.MediaHiderUI.initializePanel(page); };
     loader.onerror = function () { page.querySelector('#mhStatus').textContent = /^pl/i.test(document.documentElement.lang || navigator.language) ? 'Nie udało się załadować panelu Jelly QoL.' : 'Could not load the Jelly QoL panel.'; };
     document.head.appendChild(loader);
