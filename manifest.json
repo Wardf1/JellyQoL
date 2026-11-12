@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.6.1.0",
+        "timestamp": "2026-11-12T10:26:36Z",
+        "changelog": "Fixed a false notification-save error: successful HTTP 204 responses are no longer parsed as JSON. Administrator settings and account notification preferences now display success correctly. Empty optional account mappings are accepted. Existing settings and webhook secrets are preserved.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "61453121f32a7e6a9ed8aa2b2c2a3278",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.6.1.0/JellyQoL_1.6.1.0.zip"
+      },
+      {
         "version": "1.6.0.0",
         "timestamp": "2026-11-12T10:04:53Z",
         "changelog": "Added optional completed Seerr request webhooks and Jellyfin library notifications, with exact media matching and native library/Media Hider access checks. Profile settings popup, account preferences, grouped episodes, bell, history, unread state, once-per-account popups and one-hour reminders. Both sources enabled by default; administrator activation required. Includes webhook setup, secret rotation, account mappings, diagnostics and Test preview.",
