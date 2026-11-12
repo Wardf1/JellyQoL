@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.6.4.0",
+        "timestamp": "2026-11-12T11:02:09Z",
+        "changelog": "Removed the About section from the profile settings panel. Notifications and History remain available.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "e0bd804caf848ab72a51b47ec5cfb7ba",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.6.4.0/JellyQoL_1.6.4.0.zip"
+      },
+      {
         "version": "1.6.3.0",
         "timestamp": "2026-11-12T10:52:02Z",
         "changelog": "The notification bell now opens a compact, non-blocking panel in the top-right corner. Removed automatic notification popups on entry, navigation and new events. The bell only displays the unread count and notifications; profile settings remain separate. Removed the automatic-popup switch while preserving account preferences and history.",
