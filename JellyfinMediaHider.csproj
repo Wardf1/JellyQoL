@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Jellyfin.Plugin.MediaHider</AssemblyName>
     <RootNamespace>Jellyfin.Plugin.MediaHider</RootNamespace>
-    <Version>1.6.2.0</Version>
+    <Version>1.6.3.0</Version>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
