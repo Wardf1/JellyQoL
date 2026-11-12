@@ -35,4 +35,10 @@ public sealed class ClientAssetsController : ControllerBase
         var stream = typeof(Plugin).Assembly.GetManifestResourceStream("Jellyfin.Plugin.MediaHider.src.WebExtras.js");
         return stream is null ? NotFound() : File(stream, "application/javascript; charset=utf-8");
     }
-}
+    [AllowAnonymous]
+    [HttpGet("NotificationClient.js")]
+    public ActionResult Notifications()
+    {
+        var stream = typeof(Plugin).Assembly.GetManifestResourceStream("Jellyfin.Plugin.MediaHider.src.NotificationClient.js");
+        return stream is null ? NotFound() : File(stream, "application/javascript; charset=utf-8");
+    }}

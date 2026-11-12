@@ -2,7 +2,7 @@ param([string]$OutputDirectory = (Join-Path $PSScriptRoot 'dist'))
 $ErrorActionPreference = 'Stop'
 dotnet test (Join-Path $PSScriptRoot 'tests/MediaHider.Tests.csproj') --configuration Release
 if ($LASTEXITCODE -ne 0) { throw 'Server tests failed' }
-node --test (Join-Path $PSScriptRoot 'tests/Client.test.cjs') (Join-Path $PSScriptRoot 'tests/FilterWarnings.test.cjs') (Join-Path $PSScriptRoot 'tests/WebExtras.test.cjs')
+node --test (Join-Path $PSScriptRoot 'tests/Client.test.cjs') (Join-Path $PSScriptRoot 'tests/FilterWarnings.test.cjs') (Join-Path $PSScriptRoot 'tests/WebExtras.test.cjs') (Join-Path $PSScriptRoot 'tests/Notifications.test.cjs')
 if ($LASTEXITCODE -ne 0) { throw 'Web interface tests failed' }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $assembly = Join-Path $PSScriptRoot 'bin/Release/net10.0/Jellyfin.Plugin.MediaHider.dll'

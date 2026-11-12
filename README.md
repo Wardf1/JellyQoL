@@ -6,7 +6,7 @@ Quality-of-life features for **Jellyfin 12.1**, with Polish and English controls
 
 ## Install or update
 
-Requires **[File Transformation](https://github.com/IAmParadox27/jellyfin-plugin-file-transformation)** for Jellyfin 12.1 (tested with 3.0.2.0). Add its repository if needed:
+Requires **[File Transformation](https://github.com/IAmParadox27/jellyfin-plugin-file-transformation)** for Jellyfin 12.1 (tested with 3.0.2.0 and 3.0.3.0). Add its repository if needed:
 
 ```text
 https://www.iamparadox.dev/jellyfin/plugins/manifest.json
@@ -61,3 +61,14 @@ Counters and dismissal are separate for each account **in each browser**. A chan
 QoL, Services and Announcements preferences apply server-wide and reach other open web clients within 30 seconds. Filter state comes from the active Jellyfin library view in that browser. Visibility/group settings and all settings changes require an administrator; configured service links and announcements are available only to authenticated accounts.
 
 Requires .NET 10. Internal assembly, plugin ID, configuration file and API paths retain their original identifiers for compatibility. GPL-3.0-only. The catalog thumbnail was edited with built-in imagegen; see [its prompt](assets/jelly-qol-prompt.txt).
+### Notifications
+
+Optional server-wide notifications from **completed Seerr requests** and **new Jellyfin media**. Both sources and all media types are enabled by default in user preferences; an administrator first enables collection in the **Notifications** tab. Collection starts at activation, without sending the existing library. New accounts receive future events only.
+
+The administrator panel provides a webhook URL, secret, ready-to-copy Seerr JSON payload, retention (1–365 days), optional Seerr-username-to-Jellyfin account mappings, diagnostics and a Test preview. In Seerr, enable **Request Available**, copy the displayed payload and set its Authorization header to the generated `Bearer …` value. The same secret may instead be sent as `X-JellyQoL-Secret`. Secrets never belong in the webhook URL. Use the Jellyfin address reachable from Seerr, including any reverse-proxy base path. See the [Seerr webhook documentation](https://docs.seerr.dev/using-seerr/notifications/webhook/).
+
+Events wait for an exact Jellyfin ID or TMDB/TVDB match. Series requests resolve to available episodes; the payload's season details restrict matching when supplied. Newly added library items settle for at least 30 seconds and wait for library scanning to finish. Episodes are grouped by series, and Seerr/library events for the same item share one notification. Availability never grants access: each feed and action rechecks native Jellyfin permissions and current Media Hider rules.
+
+**Profile → Jelly QoL** opens account settings in a responsive popup with Notifications, History and About sections. Users select sources, new series/episodes/movies, popup behavior and “Only my Seerr requests.” Ownership uses the requesting Jellyfin user ID in the supplied payload; optional administrator mappings support other Seerr accounts. The own-request filter applies to the Seerr source only; disable library news to receive only personal requests.
+
+A header bell shows unread items. On entry, eligible notifications appear in a combined popup, once per account across browsers/devices; playback defers the popup. Closing marks items as shown, not read. Open or explicitly mark items to read them; **Remind me in one hour** schedules another popup. History remains accessible with popups disabled. State is persisted separately in `JellyQoL.notifications.json` in the server plugin configuration directory. History is bounded to 10,000 items and the webhook queue to 5,000 requests within the configured retention period. Popup and history behavior requires the injected server web client.

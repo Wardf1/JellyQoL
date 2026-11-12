@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.6.0.0",
+        "timestamp": "2026-11-12T10:04:53Z",
+        "changelog": "Added optional completed Seerr request webhooks and Jellyfin library notifications, with exact media matching and native library/Media Hider access checks. Profile settings popup, account preferences, grouped episodes, bell, history, unread state, once-per-account popups and one-hour reminders. Both sources enabled by default; administrator activation required. Includes webhook setup, secret rotation, account mappings, diagnostics and Test preview.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "874f91f8d99bf8af8c04bd7c3b458716",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.6.0.0/JellyQoL_1.6.0.0.zip"
+      },
+      {
         "version": "1.5.1.0",
         "timestamp": "2026-10-20T19:41:32Z",
         "changelog": "Added a native Jelly QoL settings shortcut in the administrator sidebar. Announcement Test previews unsaved fields without saving, counting views or changing dismissal state. Redesigned responsive announcement cards with clearer typography, icons, bullet details and a prominent action button.",
