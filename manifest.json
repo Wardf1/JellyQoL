@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.6.2.0",
+        "timestamp": "2026-11-12T10:31:48Z",
+        "changelog": "Fixed the notification bell pushing the avatar below the other header buttons. The bell now lives in the header actions row instead of the avatar container, with a bounded 44px size and no outer margins. Preserves the notification-save fixes from 1.6.1.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "87d88c6dce6a2b82029dc56a295688ea",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.6.2.0/JellyQoL_1.6.2.0.zip"
+      },
+      {
         "version": "1.6.1.0",
         "timestamp": "2026-11-12T10:26:36Z",
         "changelog": "Fixed a false notification-save error: successful HTTP 204 responses are no longer parsed as JSON. Administrator settings and account notification preferences now display success correctly. Empty optional account mappings are accepted. Existing settings and webhook secrets are preserved.",
