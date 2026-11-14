@@ -28,11 +28,7 @@ public sealed class NotificationPreferences
     public bool HideHeaderLibraries { get; set; }
     public Guid[] HiddenHeaderLibraryIds { get; set; } = [];
     public bool FavoritesAsIcon { get; set; } = true;
-    public bool MediaBarTrailers { get; set; }
-    public string MediaBarTrailerSource { get; set; } = "auto";
-    public bool MediaBarTrailerAutoplay { get; set; } = true;
-    public int MediaBarTrailerDelay { get; set; } = 2;
-    public MediaBarSettings? MediaBarAppearance { get; set; }
+    public bool MediaBarTrailers { get; set; } = true;
 }
 public sealed class NotificationRecord
 {
@@ -80,7 +76,7 @@ public sealed class NotificationData
     public Dictionary<Guid, DateTime> NewSeriesUntil { get; set; } = [];
 }
 public sealed record NotificationEntry(Guid[] Ids, Guid ItemId, Guid ImageItemId, string Name, string Type, int Count, DateTime Created, bool Seerr, bool Library, bool Shown, bool Read);
-public sealed record NotificationFeed(NotificationPreferences Preferences, bool Available, bool OwnRequestsLinked, int Unread, NotificationEntry[] Items) { public MediaBarSettings? MediaBarDefaults { get; init; } }
+public sealed record NotificationFeed(NotificationPreferences Preferences, bool Available, bool OwnRequestsLinked, int Unread, NotificationEntry[] Items);
 public sealed class NotificationAction
 {
     public Guid[] Ids { get; set; } = [];

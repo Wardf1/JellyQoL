@@ -27,9 +27,12 @@ public sealed record MediaBarSettings
     public int MinSwipeDistance { get; set; } = 50;
     public int PreloadCount { get; set; } = 2;
     public bool PauseDuringTrailer { get; set; } = true;
+    public bool EnableTrailers { get; set; } = true;
+    public string TrailerSource { get; set; } = "auto";
+    public int TrailerDelay { get; set; } = 2;
     public MediaBarSettings Validated()
     {
-        if (Layout is not ("banner" or "card") || BackdropPosition is not ("top" or "center" or "bottom") || Height is < 50 or > 100 || OverviewLines is < 1 or > 8 || FadeDuration is < 0 or > 2000 || MinSwipeDistance is < 20 or > 200 || PreloadCount is < 0 or > 5 || Source is not ("random" or "recent") || ItemCount is < 1 or > 20 || IntervalSeconds is < 5 or > 60)
+        if (TrailerSource is not ("auto" or "local" or "youtube") || TrailerDelay is < 0 or > 15 || Layout is not ("banner" or "card") || BackdropPosition is not ("top" or "center" or "bottom") || Height is < 50 or > 100 || OverviewLines is < 1 or > 8 || FadeDuration is < 0 or > 2000 || MinSwipeDistance is < 20 or > 200 || PreloadCount is < 0 or > 5 || Source is not ("random" or "recent") || ItemCount is < 1 or > 20 || IntervalSeconds is < 5 or > 60)
             throw new ArgumentException("Invalid Media Bar settings.");
         return this;
     }
@@ -43,14 +46,8 @@ public sealed partial class NotificationService
     public MediaBarFeed MediaBar(Guid userId) => Locked(() => {
         var account = Account(userId);
         var settings = (Plugin.Instance.Configuration.QoL.MediaBar ?? new()).Validated() with { };
-        if (account.Preferences.MediaBarAppearance is { } personal) {
-            settings = settings with { Layout = personal.Layout, BackdropPosition = personal.BackdropPosition, Height = personal.Height,
-                AutoRotate = personal.AutoRotate, IntervalSeconds = personal.IntervalSeconds, ShowOverview = personal.ShowOverview, Compact = personal.Compact,
-                ShowLogo = personal.ShowLogo, ShowRating = personal.ShowRating, ShowGenres = personal.ShowGenres, ShowButtons = personal.ShowButtons,
-                ShowDots = personal.ShowDots, OverviewLines = personal.OverviewLines, FadeDuration = personal.FadeDuration, MinSwipeDistance = personal.MinSwipeDistance,
-                PreloadCount = personal.PreloadCount, PauseDuringTrailer = personal.PauseDuringTrailer };
-        }
-        if (!settings.Enabled) return new MediaBarFeed(settings, account.Preferences.MediaBarTrailers, []);
+        settings.PauseDuringTrailer = true;
+        if (!settings.Enabled) return new MediaBarFeed(settings, settings.EnableTrailers && account.Preferences.MediaBarTrailers, []);
         var user = _users.GetUserById(userId)!;
         var query = new InternalItemsQuery(user) { Recursive = true, IncludeItemTypes = [BaseItemKind.Movie, BaseItemKind.Series],
             IsVirtualItem = false, ImageTypes = [ImageType.Backdrop], Limit = 200,
@@ -66,8 +63,8 @@ public sealed partial class NotificationService
         }
         var items = candidates
             .DistinctBy(item => item.Id).Take(settings.ItemCount).Select(item => new MediaBarItem(item.Id, item.Name, item is Movie ? "Movie" : "Series", item.ProductionYear,
-                item.CommunityRating, item.OfficialRating, (item.Overview ?? string.Empty)[..Math.Min(item.Overview?.Length ?? 0, 600)], item.Genres.Take(3).ToArray(), item.HasImage(ImageType.Logo), account.Preferences.MediaBarTrailers ? Trailer(item, userId, account.Preferences.MediaBarTrailerSource) : null)).ToArray();
-        return new MediaBarFeed(settings, account.Preferences.MediaBarTrailers, items, account.Preferences.MediaBarTrailerSource, account.Preferences.MediaBarTrailerAutoplay, account.Preferences.MediaBarTrailerDelay);
+                item.CommunityRating, item.OfficialRating, (item.Overview ?? string.Empty)[..Math.Min(item.Overview?.Length ?? 0, 600)], item.Genres.Take(3).ToArray(), item.HasImage(ImageType.Logo), settings.EnableTrailers && account.Preferences.MediaBarTrailers ? Trailer(item, userId, settings.TrailerSource) : null)).ToArray();
+        return new MediaBarFeed(settings, settings.EnableTrailers && account.Preferences.MediaBarTrailers, items, settings.TrailerSource, true, settings.TrailerDelay);
     });
     private MediaBarTrailer? Trailer(BaseItem item, Guid userId, string source)
     {

@@ -167,17 +167,18 @@ public sealed class NotificationTests
         using var f = new Fixture(); var user = f.User(); var a = f.Item<Movie>(); var b = f.Item<Movie>();
         foreach (var item in new[] { a, b }) item.SetImage(new ItemImageInfo { Type = ImageType.Backdrop, Path = "/media/backdrop.jpg" }, 0);
         f.Plugin.Configuration.QoL.MediaBar = new() { Enabled = true, Source = "recent", ItemCount = 1, AutoRotate = false };
-        var feed = f.Service.MediaBar(user.Id); Assert.Single(feed.Items); Assert.False(feed.Settings.AutoRotate); Assert.False(feed.TrailersEnabled);
+        var feed = f.Service.MediaBar(user.Id); Assert.Single(feed.Items); Assert.False(feed.Settings.AutoRotate); Assert.True(feed.TrailersEnabled);
         f.Denied.UnionWith([a.Id, b.Id]); Assert.Empty(f.Service.MediaBar(user.Id).Items); f.Denied.Clear();
         f.Plugin.Configuration.HiddenItemIds = [a.Id, b.Id]; Assert.Empty(f.Service.MediaBar(user.Id).Items);
         f.Plugin.Configuration.HiddenItemIds = []; f.Plugin.Configuration.QoL.MediaBar.Enabled = false; Assert.Empty(f.Service.MediaBar(user.Id).Items);
         Assert.Throws<UnauthorizedAccessException>(() => f.Service.MediaBar(Guid.NewGuid()));
     }
-    [Fact] public void MediaBarTrailersAreOffUntilTheAccountOptsInAndYoutubeUrlsAreRestricted()
+    [Fact] public void MediaBarTrailersRespectPersonalOptOutAndYoutubeUrlsAreRestricted()
     {
         using var f = new Fixture(); var user = f.User(); var movie = f.Item<Movie>();
         movie.SetImage(new ItemImageInfo { Type = ImageType.Backdrop, Path = "/media/backdrop.jpg" }, 0);
         movie.RemoteTrailers = [new MediaUrl { Url = "https://www.youtube.com/watch?v=M7lc1UVf-VE" }];
+        f.Service.Preferences(user.Id, new() { MediaBarTrailers = false });
         Assert.Null(Assert.Single(f.Service.MediaBar(user.Id).Items).Trailer);
         f.Service.Preferences(user.Id, new() { MediaBarTrailers = true });
         Assert.Equal("M7lc1UVf-VE", Assert.Single(f.Service.MediaBar(user.Id).Items).Trailer?.YouTubeId);
@@ -195,17 +196,17 @@ public sealed class NotificationTests
         var value = new QoLSettings { EnablePagination = false, MediaBar = new() { Enabled = false, Source = "recent" } }.Validated();
         Assert.False(value.EnablePagination); Assert.False(value.MediaBar.Enabled); Assert.Equal("recent", value.MediaBar.Source);
     }
-    [Fact] public void PersonalMediaBarAppearancePersistsWithoutOverridingAdministratorAccessOrSelection()
+
+    [Fact] public void MediaBarUsesGlobalAppearanceAndTrailerSourceWithOnlyPersonalTrailerOptOut()
     {
-        using var f = new Fixture();var a=f.User();var b=f.User();
-        f.Plugin.Configuration.QoL.MediaBar = new() { Source="recent", ItemCount=2 };
-        f.Service.Preferences(a.Id,new() { MediaBarAppearance=new() { Layout="card", BackdropPosition="bottom",Height=95,Source="random",ItemCount=20 },MediaBarTrailerSource="youtube",MediaBarTrailerAutoplay=false,MediaBarTrailerDelay=7 });
-        var own=f.Service.MediaBar(a.Id);Assert.Equal("card",own.Settings.Layout);Assert.Equal("bottom",own.Settings.BackdropPosition);Assert.Equal("recent",own.Settings.Source);Assert.Equal(2,own.Settings.ItemCount);Assert.False(own.TrailerAutoplay);Assert.Equal(7,own.TrailerDelay);
-        Assert.Equal("banner",f.Service.MediaBar(b.Id).Settings.Layout);
-        var restarted=f.NewService();Assert.Equal("card",restarted.MediaBar(a.Id).Settings.Layout);restarted.Dispose();
-        f.Plugin.Configuration.QoL.MediaBar.Enabled=false;Assert.False(f.Service.MediaBar(a.Id).Settings.Enabled);
-        Assert.Throws<ArgumentException>(()=>f.Service.Preferences(a.Id,new(){MediaBarAppearance=new(){BackdropPosition="arbitrary"}}));
-        Assert.Throws<ArgumentException>(()=>f.Service.Preferences(a.Id,new(){MediaBarTrailerSource="arbitrary"}));
-        Assert.Throws<ArgumentException>(()=>f.Service.Preferences(a.Id,new(){MediaBarTrailerDelay=16}));
+        using var f=new Fixture();var a=f.User();var b=f.User();
+        f.Plugin.Configuration.QoL.MediaBar=new(){Layout="card",BackdropPosition="bottom",TrailerSource="youtube",TrailerDelay=7,PauseDuringTrailer=false};
+        var legacy=JsonSerializer.Deserialize<NotificationPreferences>("{\"MediaBarTrailers\":true,\"MediaBarAppearance\":{\"Layout\":\"banner\"},\"MediaBarTrailerAutoplay\":false}")!;
+        f.Service.Preferences(a.Id,legacy);f.Service.Preferences(b.Id,new(){MediaBarTrailers=false});
+        var own=f.Service.MediaBar(a.Id);Assert.Equal("card",own.Settings.Layout);Assert.Equal("bottom",own.Settings.BackdropPosition);Assert.True(own.TrailerAutoplay);Assert.True(own.Settings.PauseDuringTrailer);Assert.Equal("youtube",own.TrailerSource);Assert.Equal(7,own.TrailerDelay);
+        Assert.False(f.Service.MediaBar(b.Id).TrailersEnabled);Assert.True(own.TrailersEnabled);
+        var restarted=f.NewService();Assert.False(restarted.MediaBar(b.Id).TrailersEnabled);restarted.Dispose();
+        Assert.Throws<ArgumentException>(()=>new MediaBarSettings{TrailerSource="arbitrary"}.Validated());
+        Assert.Throws<ArgumentException>(()=>new MediaBarSettings{TrailerDelay=16}.Validated());
     }
 }
