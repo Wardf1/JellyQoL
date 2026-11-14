@@ -190,9 +190,12 @@ public sealed partial class NotificationService : BackgroundService
                     group.Any(x => x.Record.Seerr), group.Any(x => x.Record.Library), group.All(x => account.Shown.Contains(x.Record.Id)), group.All(x => account.Read.Contains(x.Record.Id)));
             }).OrderByDescending(x => x.Created).Skip(Math.Clamp(offset, 0, 10000)).Take(popup ? 20 : 50).ToArray();
         if (newAccount) Save(); return new NotificationFeed(account.Preferences, _data.Options.Enabled,
-            _data.Options.AccountMappings.ContainsValue(userId) || _data.Records.Any(x => x.RequestedBy.Contains(userId)), unread, items);
+            _data.Options.AccountMappings.ContainsValue(userId) || _data.Records.Any(x => x.RequestedBy.Contains(userId)), unread, items) { MediaBarDefaults = Plugin.Instance.Configuration.QoL.MediaBar with { } };
     });
     public void Preferences(Guid userId, NotificationPreferences preferences) => Locked(() => {
+        preferences.MediaBarAppearance?.Validated();
+        if (preferences.MediaBarTrailerSource is not ("auto" or "local" or "youtube") || preferences.MediaBarTrailerDelay is < 0 or > 15)
+            throw new ArgumentException("Invalid trailer settings.");
         var hidden = preferences.HiddenHeaderLibraryIds ?? [];
         if (hidden.Length > 1000 || hidden.Any(id => id == Guid.Empty)) throw new ArgumentException("Invalid header library selection.");
         preferences.HiddenHeaderLibraryIds = hidden.Distinct().ToArray();

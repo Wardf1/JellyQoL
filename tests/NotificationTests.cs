@@ -194,4 +194,18 @@ public sealed class NotificationTests
         Assert.Throws<ArgumentException>(() => new QoLSettings { MediaBar = new() { Source = "arbitrary" } }.Validated());
         var value = new QoLSettings { EnablePagination = false, MediaBar = new() { Enabled = false, Source = "recent" } }.Validated();
         Assert.False(value.EnablePagination); Assert.False(value.MediaBar.Enabled); Assert.Equal("recent", value.MediaBar.Source);
-    }}
+    }
+    [Fact] public void PersonalMediaBarAppearancePersistsWithoutOverridingAdministratorAccessOrSelection()
+    {
+        using var f = new Fixture();var a=f.User();var b=f.User();
+        f.Plugin.Configuration.QoL.MediaBar = new() { Source="recent", ItemCount=2 };
+        f.Service.Preferences(a.Id,new() { MediaBarAppearance=new() { Layout="card", BackdropPosition="bottom",Height=95,Source="random",ItemCount=20 },MediaBarTrailerSource="youtube",MediaBarTrailerAutoplay=false,MediaBarTrailerDelay=7 });
+        var own=f.Service.MediaBar(a.Id);Assert.Equal("card",own.Settings.Layout);Assert.Equal("bottom",own.Settings.BackdropPosition);Assert.Equal("recent",own.Settings.Source);Assert.Equal(2,own.Settings.ItemCount);Assert.False(own.TrailerAutoplay);Assert.Equal(7,own.TrailerDelay);
+        Assert.Equal("banner",f.Service.MediaBar(b.Id).Settings.Layout);
+        var restarted=f.NewService();Assert.Equal("card",restarted.MediaBar(a.Id).Settings.Layout);restarted.Dispose();
+        f.Plugin.Configuration.QoL.MediaBar.Enabled=false;Assert.False(f.Service.MediaBar(a.Id).Settings.Enabled);
+        Assert.Throws<ArgumentException>(()=>f.Service.Preferences(a.Id,new(){MediaBarAppearance=new(){BackdropPosition="arbitrary"}}));
+        Assert.Throws<ArgumentException>(()=>f.Service.Preferences(a.Id,new(){MediaBarTrailerSource="arbitrary"}));
+        Assert.Throws<ArgumentException>(()=>f.Service.Preferences(a.Id,new(){MediaBarTrailerDelay=16}));
+    }
+}
