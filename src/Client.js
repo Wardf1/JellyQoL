@@ -401,7 +401,7 @@
         async function previewModule() {
             if (window.JellyQoLExtras?.previewAnnouncement) return window.JellyQoLExtras;
             if (!previewLoader) previewLoader = new Promise((resolve, reject) => {
-                const script = document.createElement('script'); script.src = apiClient().getUrl('MediaHider/WebExtras.js') + '?v=1.7.0.0';
+                const script = document.createElement('script'); script.src = apiClient().getUrl('MediaHider/WebExtras.js') + '?v=1.7.1.0';
                 script.onload = () => window.JellyQoLExtras?.previewAnnouncement ? resolve(window.JellyQoLExtras) : reject(new Error('Preview unavailable'));
                 script.onerror = () => { script.remove(); previewLoader = null; reject(new Error('Preview unavailable')); };
                 document.head.appendChild(script);
