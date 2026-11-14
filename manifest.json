@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.9.4.0",
+        "timestamp": "2026-11-14T20:48:08Z",
+        "changelog": "Removed black edge overlays, backdrop blur and double-cut masks. Only the artwork fades broadly over an opaque trailer, preventing a dark seam. Widened the partial-opacity region to about 20% of bar width. Simplified the bottom fade and kept the last trailer frame visible during buffering. Preserved the 30% artwork shift, 35–55% arc and existing timing.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "ff6bcc5bebc5889a3b04f1c4f8652652",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.9.4.0/JellyQoL_1.9.4.0.zip"
+      },
+      {
         "version": "1.9.3.0",
         "timestamp": "2026-11-14T20:31:35Z",
         "changelog": "Aligned complementary artwork/player masks to prevent backdrop overlap. Left-side blur and opaque darkening stop at the trailer boundary; a narrow translucent dark veil gently overlaps and fades out along the player edge. Increased animated backdrop shift to 30% of bar width and aligned mobile mask geometry.",

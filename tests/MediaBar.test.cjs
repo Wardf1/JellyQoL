@@ -32,7 +32,7 @@ f.w.YT={Player:function(frame,opts){options=opts;events=opts.events;this.destroy
 f.data.TrailersEnabled=true;f.data.TrailerAutoplay=false;f.data.Items[0].Trailer={Kind:'youtube',YouTubeId:'M7lc1UVf-VE'};await pause(1500);
 const root=f.shadow(),name=()=>root.querySelector('h2').textContent;const stop=root.querySelector('[aria-label="Stop trailer"]');assert.ok(stop);assert.equal(options.playerVars.controls,0);assert.equal(options.playerVars.cc_load_policy,0);assert.ok(captions.includes('captions'));
 f.advance(10000);await pause();assert.match(name(),/First/);events.onStateChange({data:1});const muteIcon=root.querySelector('[aria-label="Enable trailer sound"] svg path').getAttribute('d');
-root.querySelector('[aria-label="Enable trailer sound"]').click();assert.notEqual(root.querySelector('[aria-label="Mute trailer"] svg path').getAttribute('d'),muteIcon);events.onStateChange({data:3});f.advance(100000);await pause();assert.match(name(),/First/);
+root.querySelector('[aria-label="Enable trailer sound"]').click();assert.notEqual(root.querySelector('[aria-label="Mute trailer"] svg path').getAttribute('d'),muteIcon);events.onStateChange({data:3});assert.ok(root.querySelector('.preview').classList.contains('playing'));f.advance(100000);await pause();assert.match(name(),/First/);
 events.onStateChange({data:0});assert.ok(root.querySelector('[aria-label="Play trailer"]'));assert.equal(root.querySelector('[aria-label="Enable trailer sound"]').hidden,true);f.advance(6000);await pause();assert.equal(name(),'Second');
 });
 test('local trailers are not cut off by rotation and release the slide only after ended',async t=>{
