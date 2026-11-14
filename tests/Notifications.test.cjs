@@ -46,8 +46,8 @@ const f=fixture(t);await pause();f.d.querySelector('[data-jqn-user-menu]').click
 });
 
 
-test('Appearance exposes only the personal trailer switch and removes all old Media Bar controls and help',async t=>{
+test('Appearance exposes trailer enable and default-sound switches without old visual controls or help',async t=>{
 const f=fixture(t);await pause();await f.w.JellyQoLNotifications.open('appearance');await pause();const form=f.d.querySelector('#jqn-settings form');
-const fields=Array.from(form.querySelectorAll('[name]')).map(x=>x.name).filter(x=>/MediaBar/.test(x));assert.deepEqual(fields,['MediaBarTrailers']);assert.doesNotMatch(form.textContent,/administrator.*appearance|YouTube|API key|Use my own/);
-form.querySelector('[name=MediaBarTrailers]').checked=false;form.dispatchEvent(new f.w.Event('submit',{bubbles:true,cancelable:true}));await pause();assert.equal(f.prefs.MediaBarTrailers,false);assert.equal(f.calls.some(x=>x.type==='POST'&&x.url.endsWith('/QoL')),false);
+const fields=Array.from(form.querySelectorAll('[name]')).map(x=>x.name).filter(x=>/MediaBar/.test(x));assert.deepEqual(fields,['MediaBarTrailers','MediaBarTrailerSound']);assert.equal(form.querySelector('[name=MediaBarTrailerSound]').checked,false);form.querySelector('[name=MediaBarTrailerSound]').checked=true;assert.doesNotMatch(form.textContent,/administrator.*appearance|YouTube|API key|Use my own/);
+form.querySelector('[name=MediaBarTrailers]').checked=false;form.dispatchEvent(new f.w.Event('submit',{bubbles:true,cancelable:true}));await pause();assert.equal(f.prefs.MediaBarTrailers,false);assert.equal(f.prefs.MediaBarTrailerSound,true);assert.equal(f.calls.some(x=>x.type==='POST'&&x.url.endsWith('/QoL')),false);
 });

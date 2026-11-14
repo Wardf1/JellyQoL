@@ -29,6 +29,7 @@ public sealed class NotificationPreferences
     public Guid[] HiddenHeaderLibraryIds { get; set; } = [];
     public bool FavoritesAsIcon { get; set; } = true;
     public bool MediaBarTrailers { get; set; } = true;
+    public bool MediaBarTrailerSound { get; set; }
 }
 public sealed class NotificationRecord
 {
@@ -70,6 +71,7 @@ public sealed class NotificationData
     public List<NotificationRecord> Records { get; set; } = [];
     public Dictionary<Guid, NotificationAccount> Accounts { get; set; } = [];
     public List<PendingRequest> Requests { get; set; } = [];
+    public Dictionary<Guid, DateTime> AvailableSince { get; set; } = [];
     public DateTime? LastWebhook { get; set; }
     public string LastWebhookStatus { get; set; } = "none";
     public HashSet<Guid> KnownSeries { get; set; } = [];

@@ -19,7 +19,7 @@ const f=fixture(t,{settings:{Layout:'banner',Height:90,BackdropPosition:'center'
 f.w.YT={Player:function(node,options){created++;frame=node;playerOptions=options;this.destroy=()=>{};this.mute=()=>{};this.unMute=()=>{};this.playVideo=()=>{};options.events.onReady({target:this});options.events.onStateChange({data:1});}};
 f.data.TrailersEnabled=true;f.data.TrailerAutoplay=false;f.data.Items[0].Trailer={Kind:'youtube',YouTubeId:'M7lc1UVf-VE'};
 await pause(1400);assert.equal(created,1);const root=f.shadow();assert.ok(root.querySelector('section.banner'));assert.equal(root.querySelector('section').style.getPropertyValue('--backdrop-position'),'center center');assert.equal(root.querySelector('section').style.getPropertyValue('--banner-height'),'90svh');assert.equal(root.querySelector('.rating'),null);assert.equal(root.querySelector('.genre'),null);assert.equal(root.querySelector('.actions').hidden,true);assert.equal(root.querySelector('.dots').hidden,true);
-assert.equal(created,1);assert.equal(f.d.getElementById(frame.id),frame);assert.equal(frame.slot,'youtube-preview');assert.match(frame.allow,/autoplay/);assert.equal(frame.referrerPolicy,'strict-origin-when-cross-origin');assert.equal(root.querySelector('slot').assignedElements()[0],frame);
+assert.equal(created,1);assert.equal(f.d.getElementById(frame.id),frame);assert.match(frame.slot,/^youtube-preview-/);assert.match(frame.allow,/autoplay/);assert.equal(frame.referrerPolicy,'strict-origin-when-cross-origin');assert.equal(root.querySelector('slot').assignedElements()[0],frame);
 root.querySelector('[aria-label="Enable trailer sound"]').click();assert.equal(root.querySelector('[aria-label="Mute trailer"]').getAttribute('aria-pressed'),'true');root.querySelector('[aria-label="Stop trailer"]').click();assert.equal(f.d.getElementById(frame.id),null);
 });
 test('manual trailers work with reduced motion while automatic previews and rotation remain disabled',async t=>{
@@ -38,4 +38,17 @@ events.onStateChange({data:0});assert.ok(root.querySelector('[aria-label="Play t
 test('local trailers are not cut off by rotation and release the slide only after ended',async t=>{
 const f=fixture(t,{settings:{PauseDuringTrailer:false}});f.data.TrailersEnabled=true;f.data.Items[0].Trailer={Kind:'local',ItemId:B};await pause(1500);const root=f.shadow(),video=root.querySelector('video');assert.ok(video);
 f.advance(60000);await pause();assert.match(root.querySelector('h2').textContent,/First/);video.dispatchEvent(new f.w.Event('ended'));f.advance(6000);await pause();assert.equal(root.querySelector('h2').textContent,'Second');
+});
+
+test('crossfade retains the outgoing scene until new artwork loads, then cleans it up without stale frames',async t=>{
+const f=fixture(t,{settings:{FadeDuration:150}});await pause();const root=f.shadow(),original=root.querySelector('.scene');root.querySelector('.backdrop').dispatchEvent(new f.w.Event('load'));root.querySelector('[aria-label="Next title"]').click();
+assert.equal(root.querySelectorAll('.scene').length,2);assert.equal(original.style.opacity,'1');const incoming=Array.from(root.querySelectorAll('.scene')).find(x=>x!==original);assert.equal(incoming.style.opacity,'0');assert.equal(root.querySelector('.outgoing-content').inert,true);incoming.querySelector('.backdrop').dispatchEvent(new f.w.Event('load'));assert.equal(incoming.style.opacity,'1');assert.equal(original.style.opacity,'0');await pause(1530);assert.equal(root.querySelectorAll('.scene').length,1);assert.equal(root.querySelector('.outgoing-content'),null);
+root.querySelector('[aria-label="Previous title"]').click();f.w.location.hash='/login';await pause();assert.equal(f.bar(),null);
+});
+test('rapid slide changes cancel obsolete fades and late image callbacks cannot revive removed content',async t=>{
+const f=fixture(t,{settings:{FadeDuration:50}});await pause();const root=f.shadow();root.querySelector('[aria-label="Next title"]').click();const abandoned=root.querySelectorAll('.scene')[1].querySelector('.backdrop');root.querySelector('[aria-label="Previous title"]').click();assert.equal(root.querySelectorAll('.scene').length,2);abandoned.dispatchEvent(new f.w.Event('load'));const incoming=root.querySelectorAll('.scene')[1];assert.equal(incoming.style.opacity,'0');incoming.querySelector('.backdrop').dispatchEvent(new f.w.Event('load'));await pause(1530);assert.equal(root.querySelectorAll('.scene').length,1);
+});
+test('requested default sound is used for local trailers and silently falls back when the browser blocks it',async t=>{
+const f=fixture(t);let attempts=0;f.w.HTMLMediaElement.prototype.play=function(){attempts++;if(!this.muted)return Promise.reject(new Error('NotAllowedError'));this.dispatchEvent(new f.w.Event('playing'));return Promise.resolve();};
+f.data.TrailersEnabled=true;f.data.TrailerSound=true;f.data.Items[0].Trailer={Kind:'local',ItemId:B};await pause(1500);const video=f.shadow().querySelector('video');assert.ok(video);assert.equal(attempts,2);assert.equal(video.muted,true);assert.equal(f.shadow().querySelector('[aria-label="Enable trailer sound"]').hidden,false);assert.ok(f.shadow().querySelector('.scene.has-trailer'));
 });

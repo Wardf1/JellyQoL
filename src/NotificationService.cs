@@ -68,7 +68,7 @@ public sealed partial class NotificationService : BackgroundService
     public bool AcceptSecret(string supplied) => Locked(() => _data.Options.Enabled && _data.Options.Seerr && supplied.Length <= 256 && _data.Options.Secret.Length >= 32 &&
         CryptographicOperations.FixedTimeEquals(SHA256.HashData(Encoding.UTF8.GetBytes(supplied)), SHA256.HashData(Encoding.UTF8.GetBytes(_data.Options.Secret))));
     public object Diagnostics() => Locked(() => (object)new { _data.LastWebhook, _data.LastWebhookStatus,
-        Waiting = _data.Requests.Count(x => x.Status == "waiting"), Ready = _data.Requests.Count(x => x.Status == "ready"),
+        Waiting = _data.Requests.Count(x => x.Status == "waiting"), Ready = _data.Requests.Count(x => x.Status == "ready"), IgnoredExisting = _data.Requests.Count(x => x.Status == "existing"),
         Requests = _data.Requests.OrderByDescending(x => x.Received).Take(30).Select(x => new { x.RequestId, x.MediaType, x.Received, x.Status }).ToArray() });
     public void Receive(JsonElement payload) => Locked(() => {
         var request = SeerrWebhook.Parse(payload);
@@ -85,7 +85,7 @@ public sealed partial class NotificationService : BackgroundService
     {
         if (item is Movie or Episode && !item.IsVirtualItem) _added[item.Id] = DateTime.UtcNow;
     }
-    private void OnAdded(object? sender, ItemChangeEventArgs args) { if (_data.Options.Enabled && _data.Options.Library) QueueItem(args.Item); }
+    private void OnAdded(object? sender, ItemChangeEventArgs args) { if (_data.Options.Enabled) QueueItem(args.Item); }
     private static bool Playable(BaseItem? item) => item is Movie or Episode && !item.IsVirtualItem && !string.IsNullOrWhiteSpace(item.Path);
     private void Record(BaseItem item, bool seerr, bool library, Guid? requester = null)
     {
@@ -102,20 +102,36 @@ public sealed partial class NotificationService : BackgroundService
         if (!_data.Options.Enabled) return false;
         foreach (var entry in _added.ToArray()) {
             if (DateTime.UtcNow - entry.Value < TimeSpan.FromSeconds(30) || _library.IsScanRunning) continue;
-            if (_data.Options.Library && _library.GetItemById(entry.Key) is { } item && Playable(item)) Record(item, false, true);
+            if (_library.GetItemById(entry.Key) is { } item && Playable(item)) {
+                _data.AvailableSince.TryAdd(item.Id, DateTime.UtcNow);
+                if (_data.Options.Library) Record(item, false, true);
+            }
             _added.TryRemove(entry.Key, out _);
         }
         foreach (var request in _data.Requests.Where(x => x.Status == "waiting")) {
-            var matches = Resolve(request).Where(Playable).ToArray();
-            if (matches.Length == 0) continue;
+            var resolved = Resolve(request).Where(Playable).ToArray();
+            if (resolved.Length == 0) continue;
+            var matches = resolved.Where(item => NewlyAvailable(item, request.Received)).ToArray();
+            if (matches.Length == 0) { request.Status = "existing"; request.MatchedIds = resolved.Select(item => item.Id).ToArray(); _data.LastWebhookStatus = "existing"; continue; }
             var requester = request.RequestedBy;
             if (!requester.HasValue && _data.Options.AccountMappings.TryGetValue(request.RequesterId, out var mapped)) requester = mapped;
-            foreach (var item in matches) Record(item, true, false, requester);
+            foreach (var item in matches) {
+                _data.AvailableSince.TryAdd(item.Id, _added.TryGetValue(item.Id, out var observed) ? observed : item.DateCreated);
+                Record(item, true, false, requester);
+            }
             request.MatchedIds = matches.Select(x => x.Id).ToArray(); request.Status = "ready";
             _data.LastWebhookStatus = "ready";
         }
         Prune(); Save(); return true;
     });
+    private bool NewlyAvailable(BaseItem item, DateTime received)
+    {
+        var cutoff = received > DateTime.UtcNow ? received.AddMinutes(-10) : DateTime.UtcNow.AddMinutes(-10);
+        return item.DateCreated >= cutoff ||
+            (_added.TryGetValue(item.Id, out var queued) && queued >= cutoff) ||
+            (_data.AvailableSince.TryGetValue(item.Id, out var available) && available >= cutoff) ||
+            _data.Records.Any(record => record.ItemId == item.Id && record.Library && record.Created >= cutoff);
+    }
     private IEnumerable<BaseItem> Resolve(PendingRequest request)
     {
         var title = request.ItemId.HasValue ? _library.GetItemById(request.ItemId.Value) : null;
@@ -129,15 +145,15 @@ public sealed partial class NotificationService : BackgroundService
         if (title is not Series series || request.MediaType != "tv") return [];
         var seasons = request.Seasons.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(x => int.TryParse(x, out var n) ? n : -1).Where(x => x >= 0).ToArray();
         var episodes = _library.GetItemList(new InternalItemsQuery { Recursive = true, AncestorIds = [series.Id], IncludeItemTypes = [BaseItemKind.Episode], IsVirtualItem = false });
-        // Never announce every old episode of an existing series for a later request.
-        return episodes.Where(x => (seasons.Length == 0 || x.ParentIndexNumber.HasValue && seasons.Contains(x.ParentIndexNumber.Value)) &&
-            (seasons.Length > 0 || x.DateCreated >= request.Received.AddMinutes(-10) || _data.Records.Any(r => r.ItemId == x.Id && r.Created >= request.Received.AddMinutes(-10))));
+        // Resolve seasons first; freshness is checked uniformly for movies and episodes.
+        return episodes.Where(x => seasons.Length == 0 || x.ParentIndexNumber.HasValue && seasons.Contains(x.ParentIndexNumber.Value));
     }
     private void Prune()
     {
         var cutoff = DateTime.UtcNow.AddDays(-_data.Options.RetentionDays);
         _data.Records = _data.Records.Where(x => x.Created >= cutoff).OrderByDescending(x => x.Created).Take(10000).ToList();
         _data.Requests.RemoveAll(x => x.Received < cutoff);
+        foreach (var id in _data.AvailableSince.Where(pair => pair.Value < cutoff).Select(pair => pair.Key).ToArray()) _data.AvailableSince.Remove(id);
         var ids = _data.Records.Select(x => x.Id).ToHashSet();
         foreach (var account in _data.Accounts.Values) {
             account.Shown.IntersectWith(ids); account.Read.IntersectWith(ids);

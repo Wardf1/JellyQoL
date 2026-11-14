@@ -202,11 +202,35 @@ public sealed class NotificationTests
         using var f=new Fixture();var a=f.User();var b=f.User();
         f.Plugin.Configuration.QoL.MediaBar=new(){Layout="card",BackdropPosition="bottom",TrailerSource="youtube",TrailerDelay=7,PauseDuringTrailer=false};
         var legacy=JsonSerializer.Deserialize<NotificationPreferences>("{\"MediaBarTrailers\":true,\"MediaBarAppearance\":{\"Layout\":\"banner\"},\"MediaBarTrailerAutoplay\":false}")!;
-        f.Service.Preferences(a.Id,legacy);f.Service.Preferences(b.Id,new(){MediaBarTrailers=false});
+        f.Service.Preferences(a.Id,legacy);f.Service.Preferences(b.Id,new(){MediaBarTrailers=false,MediaBarTrailerSound=true});
         var own=f.Service.MediaBar(a.Id);Assert.Equal("card",own.Settings.Layout);Assert.Equal("bottom",own.Settings.BackdropPosition);Assert.True(own.TrailerAutoplay);Assert.True(own.Settings.PauseDuringTrailer);Assert.Equal("youtube",own.TrailerSource);Assert.Equal(7,own.TrailerDelay);
-        Assert.False(f.Service.MediaBar(b.Id).TrailersEnabled);Assert.True(own.TrailersEnabled);
+        Assert.False(f.Service.MediaBar(b.Id).TrailersEnabled);Assert.True(f.Service.MediaBar(b.Id).TrailerSound);Assert.False(own.TrailerSound);Assert.True(own.TrailersEnabled);
         var restarted=f.NewService();Assert.False(restarted.MediaBar(b.Id).TrailersEnabled);restarted.Dispose();
         Assert.Throws<ArgumentException>(()=>new MediaBarSettings{TrailerSource="arbitrary"}.Validated());
         Assert.Throws<ArgumentException>(()=>new MediaBarSettings{TrailerDelay=16}.Validated());
+    }
+
+    [Fact] public void SeerrDoesNotAnnounceMoviesThatHaveAlreadyBeenInTheLibraryForWeeks()
+    {
+        using var f=new Fixture();var user=f.User();f.Enable();var movie=f.Item<Movie>();movie.DateCreated=DateTime.UtcNow.AddDays(-30);
+        f.Receive(movie);Assert.Empty(f.Service.Feed(user.Id).Items);
+        f.Service.Receive(JsonSerializer.SerializeToElement(new{notification_type="MEDIA_AVAILABLE",mediaType="movie",jellyfinMediaId=movie.Id,request_id="new-request"}));f.Service.ProcessPending();
+        Assert.Empty(f.Service.Feed(user.Id).Items);
+        var state=JsonSerializer.SerializeToElement(f.Service.Diagnostics());Assert.Equal(2,state.GetProperty("IgnoredExisting").GetInt32());
+    }
+    [Fact] public void ExplicitSeerrSeasonIncludesOnlyNewEpisodesAndNeverReannouncesOldOnes()
+    {
+        using var f=new Fixture();var user=f.User();var series=f.Item<Series>();var season=f.Item<Season>(series);f.Enable();
+        var old=f.Item<Episode>(season);old.ParentIndexNumber=1;old.DateCreated=DateTime.UtcNow.AddDays(-30);
+        var fresh=f.Item<Episode>(season);fresh.ParentIndexNumber=1;
+        f.Service.Receive(JsonSerializer.SerializeToElement(new{notification_type="MEDIA_AVAILABLE",mediaType="tv",jellyfinMediaId=series.Id,seasons="1"}));f.Service.ProcessPending();
+        var entry=Assert.Single(f.Service.Feed(user.Id).Items);Assert.Equal(1,entry.Count);
+    }
+    [Fact] public void ObservedNewAvailabilityAllowsOldFileDatesEvenWithLibraryNewsDisabledAndSurvivesRestart()
+    {
+        using var f=new Fixture();var user=f.User();f.Service.Configure(new(){Enabled=true,Library=false});
+        var movie=f.Item<Movie>();movie.DateCreated=DateTime.UtcNow.AddDays(-30);f.Service.QueueItem(movie);f.Receive(movie);Assert.Single(f.Service.Feed(user.Id).Items);
+        var restarted=f.NewService();restarted.Receive(JsonSerializer.SerializeToElement(new{notification_type="MEDIA_AVAILABLE",mediaType="movie",jellyfinMediaId=movie.Id,request_id="another"}));restarted.ProcessPending();
+        Assert.Single(restarted.Feed(user.Id).Items);Assert.Equal(0,JsonSerializer.SerializeToElement(restarted.Diagnostics()).GetProperty("IgnoredExisting").GetInt32());restarted.Dispose();
     }
 }

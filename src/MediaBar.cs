@@ -23,7 +23,6 @@ public sealed record MediaBarSettings
     public bool ShowButtons { get; set; } = true;
     public bool ShowDots { get; set; } = true;
     public int OverviewLines { get; set; } = 3;
-    public int FadeDuration { get; set; } = 350;
     public int MinSwipeDistance { get; set; } = 50;
     public int PreloadCount { get; set; } = 2;
     public bool PauseDuringTrailer { get; set; } = true;
@@ -32,14 +31,14 @@ public sealed record MediaBarSettings
     public int TrailerDelay { get; set; } = 2;
     public MediaBarSettings Validated()
     {
-        if (TrailerSource is not ("auto" or "local" or "youtube") || TrailerDelay is < 0 or > 15 || Layout is not ("banner" or "card") || BackdropPosition is not ("top" or "center" or "bottom") || Height is < 50 or > 100 || OverviewLines is < 1 or > 8 || FadeDuration is < 0 or > 2000 || MinSwipeDistance is < 20 or > 200 || PreloadCount is < 0 or > 5 || Source is not ("random" or "recent") || ItemCount is < 1 or > 20 || IntervalSeconds is < 5 or > 60)
+        if (TrailerSource is not ("auto" or "local" or "youtube") || TrailerDelay is < 0 or > 15 || Layout is not ("banner" or "card") || BackdropPosition is not ("top" or "center" or "bottom") || Height is < 50 or > 100 || OverviewLines is < 1 or > 8 || MinSwipeDistance is < 20 or > 200 || PreloadCount is < 0 or > 5 || Source is not ("random" or "recent") || ItemCount is < 1 or > 20 || IntervalSeconds is < 5 or > 60)
             throw new ArgumentException("Invalid Media Bar settings.");
         return this;
     }
 }
 public sealed record MediaBarItem(Guid Id, string Name, string Type, int? Year, float? CommunityRating, string? OfficialRating, string Overview, string[] Genres, bool HasLogo, MediaBarTrailer? Trailer);
 public sealed record MediaBarTrailer(string Kind, Guid? ItemId = null, string? YouTubeId = null);
-public sealed record MediaBarFeed(MediaBarSettings Settings, bool TrailersEnabled, MediaBarItem[] Items, string TrailerSource = "auto", bool TrailerAutoplay = true, int TrailerDelay = 2);
+public sealed record MediaBarFeed(MediaBarSettings Settings, bool TrailersEnabled, MediaBarItem[] Items, string TrailerSource = "auto", bool TrailerAutoplay = true, int TrailerDelay = 2, bool TrailerSound = false);
 public sealed partial class NotificationService
 {
     private readonly Dictionary<Guid, (DateTime Expires, int Count, Guid[] Ids)> _featuredCache = [];
@@ -64,7 +63,7 @@ public sealed partial class NotificationService
         var items = candidates
             .DistinctBy(item => item.Id).Take(settings.ItemCount).Select(item => new MediaBarItem(item.Id, item.Name, item is Movie ? "Movie" : "Series", item.ProductionYear,
                 item.CommunityRating, item.OfficialRating, (item.Overview ?? string.Empty)[..Math.Min(item.Overview?.Length ?? 0, 600)], item.Genres.Take(3).ToArray(), item.HasImage(ImageType.Logo), settings.EnableTrailers && account.Preferences.MediaBarTrailers ? Trailer(item, userId, settings.TrailerSource) : null)).ToArray();
-        return new MediaBarFeed(settings, settings.EnableTrailers && account.Preferences.MediaBarTrailers, items, settings.TrailerSource, true, settings.TrailerDelay);
+        return new MediaBarFeed(settings, settings.EnableTrailers && account.Preferences.MediaBarTrailers, items, settings.TrailerSource, true, settings.TrailerDelay, account.Preferences.MediaBarTrailerSound);
     });
     private MediaBarTrailer? Trailer(BaseItem item, Guid userId, string source)
     {
