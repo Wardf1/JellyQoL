@@ -38,6 +38,7 @@
         }
     };
     Object.assign(dictionaries.en, {
+        mediaBarHelp:'Configure the featured bar for all accounts. Users control trailers in Profile → Jelly QoL → Appearance.',sectionMediaBar:'Media Bar',MediaBarEnabled:'Enable Media Bar',MediaBarSource:'Featured titles',random:'Random movies and series',recent:'Recently added movies and series',MediaBarItemCount:'Number of titles (1–20)',MediaBarIntervalSeconds:'Slide interval in seconds (5–60)',MediaBarAutoRotate:'Rotate slides automatically',MediaBarShowOverview:'Show the synopsis',MediaBarCompact:'Use a compact height',
         filterWarnings: 'Warn about active filters', filterAnimation: 'Animate active-filter warnings', filtersScope: 'These settings apply to all accounts in the server web client. Other open clients update within 30 seconds.', qolSaved: 'QoL settings saved.', filtersHelp: 'Active-filter warnings update automatically in the Jellyfin 12.1 web client, for all accounts.', visibilityHeading: 'Media visibility', groups: 'Optional user groups', groupsHelp: 'Without groups, hidden titles are visible only to administrators. With groups, choose all users or selected groups when hiding a title.',
         groupName: 'Group name', groupMembers: 'Group members', saveGroup: 'Save group', cancelEdit: 'Cancel editing', edit: 'Edit', deleteGroup: 'Delete', noGroups: 'No groups configured. Hidden titles remain administrator-only.',
         noUsers: 'No non-administrator accounts are available.', members: 'Members: {count}', groupSaved: 'The group has been saved.', groupDeleted: 'The group has been deleted.',
@@ -49,6 +50,7 @@
         save: 'Save', cancel: 'Cancel', changeAudience: 'Change hiding audience', hiddenGroups: 'Hidden from: {groups}'
     });
     Object.assign(dictionaries.pl, {
+        mediaBarHelp:'Ustaw pasek polecanych dla wszystkich kont. Użytkownik włącza trailery w menu profilu → Jelly QoL → Wygląd.',sectionMediaBar:'Media Bar',MediaBarEnabled:'Włącz Media Bar',MediaBarSource:'Polecane tytuły',random:'Losowe filmy i seriale',recent:'Ostatnio dodane filmy i seriale',MediaBarItemCount:'Liczba tytułów (1–20)',MediaBarIntervalSeconds:'Zmiana slajdu co tyle sekund (5–60)',MediaBarAutoRotate:'Automatycznie zmieniaj slajdy',MediaBarShowOverview:'Pokazuj opis',MediaBarCompact:'Użyj niższego paska',
         filterWarnings: 'Ostrzegaj o aktywnych filtrach', filterAnimation: 'Animuj ostrzeżenia o aktywnych filtrach', filtersScope: 'Ustawienia dotyczą wszystkich kont w interfejsie WWW serwera. Pozostałe otwarte przeglądarki zaktualizują się w ciągu 30 sekund.', qolSaved: 'Zapisano ustawienia QoL.', filtersHelp: 'Ostrzeżenia o aktywnych filtrach aktualizują się automatycznie w interfejsie WWW Jellyfin 12.1, na wszystkich kontach.', visibilityHeading: 'Widoczność materiałów', groups: 'Opcjonalne grupy użytkowników', groupsHelp: 'Bez grup ukryte tytuły widzą tylko administratorzy. Po utworzeniu grup przy ukrywaniu możesz wybrać wszystkich użytkowników lub wybrane grupy.',
         groupName: 'Nazwa grupy', groupMembers: 'Członkowie grupy', saveGroup: 'Zapisz grupę', cancelEdit: 'Anuluj edycję', edit: 'Edytuj', deleteGroup: 'Usuń', noGroups: 'Nie utworzono grup. Ukryte tytuły pozostają dostępne tylko administratorom.',
         noUsers: 'Brak kont bez uprawnień administratora.', members: 'Członkowie: {count}', groupSaved: 'Zapisano grupę.', groupDeleted: 'Usunięto grupę.',
@@ -284,6 +286,7 @@
     setInterval(schedule, 2000);
 
     Object.assign(dictionaries.en, {
+        mediaBarHelp:'Configure the featured bar for all accounts. Users control trailers in Profile → Jelly QoL → Appearance.',sectionMediaBar:'Media Bar',MediaBarEnabled:'Enable Media Bar',MediaBarSource:'Featured titles',random:'Random movies and series',recent:'Recently added movies and series',MediaBarItemCount:'Number of titles (1–20)',MediaBarIntervalSeconds:'Slide interval in seconds (5–60)',MediaBarAutoRotate:'Rotate slides automatically',MediaBarShowOverview:'Show the synopsis',MediaBarCompact:'Use a compact height',
         testAnnouncement:'Test',testHelp:'Preview the current fields without saving, date restrictions or appearance limits.',testEmpty:'Enter a message to preview.',testFailed:'Could not load the preview. Reload the web client and try again.',announcements:'Announcements',servicesHelp:'Configure header shortcuts. Leave a URL empty to hide that shortcut.',
         importHelp:'Import supported settings from a JS Injector JSON export. Scripts are read as text and never executed.',importScripts:'Import JS Injector settings',importDone:'Settings imported and saved. Disable the corresponding scripts in JS Injector.',importError:'Could not import settings. Use a valid JS Injector JSON export and check its supported fields.',
         announcementHelp:'Optional home-page message. Display limits and dismissal are stored separately for each account in this browser. Changing the message starts a new announcement.',
@@ -296,6 +299,7 @@
         limitsHelp:'Dates use this browser’s time zone. Counters are local to each account and browser. Keep the announcement disabled while preparing its contents.',qolValidation:'Check addresses, dates and display limits. URLs must start with http:// or https://.'
     });
     Object.assign(dictionaries.pl, {
+        mediaBarHelp:'Ustaw pasek polecanych dla wszystkich kont. Użytkownik włącza trailery w menu profilu → Jelly QoL → Wygląd.',sectionMediaBar:'Media Bar',MediaBarEnabled:'Włącz Media Bar',MediaBarSource:'Polecane tytuły',random:'Losowe filmy i seriale',recent:'Ostatnio dodane filmy i seriale',MediaBarItemCount:'Liczba tytułów (1–20)',MediaBarIntervalSeconds:'Zmiana slajdu co tyle sekund (5–60)',MediaBarAutoRotate:'Automatycznie zmieniaj slajdy',MediaBarShowOverview:'Pokazuj opis',MediaBarCompact:'Użyj niższego paska',
         testAnnouncement:'Test',testHelp:'Podgląd bieżących pól bez zapisywania, ograniczeń daty i limitu wyświetleń.',testEmpty:'Wpisz treść komunikatu, aby go przetestować.',testFailed:'Nie udało się załadować podglądu. Odśwież interfejs i spróbuj ponownie.',announcements:'Komunikaty',servicesHelp:'Skonfiguruj skróty w nagłówku. Puste pole adresu ukrywa dany skrót.',
         importHelp:'Wczytaj obsługiwane ustawienia z eksportu JSON wtyczki JS Injector. Skrypty są odczytywane jako tekst i nie są wykonywane.',importScripts:'Importuj ustawienia JS Injector',importDone:'Zaimportowano i zapisano ustawienia. Wyłącz odpowiadające im skrypty w JS Injector.',importError:'Nie udało się wczytać ustawień. Wybierz prawidłowy eksport JSON z JS Injector i sprawdź obsługiwane pola.',
         announcementHelp:'Opcjonalny komunikat na stronie głównej. Limity i zamknięcie są zapamiętywane oddzielnie dla każdego konta w tej przeglądarce. Zmiana treści rozpoczyna nowy komunikat.',
@@ -344,6 +348,7 @@
     }
     function setupQoL(page, message, isBusy, setBusy) {
         const schema = [
+            ['jqMediaBarForm','sectionMediaBar',[['MediaBarEnabled','checkbox'],['MediaBarSource','select'],['MediaBarItemCount','number',20],['MediaBarIntervalSeconds','number',60],['MediaBarAutoRotate','checkbox'],['MediaBarShowOverview','checkbox'],['MediaBarCompact','checkbox']]],
             ['jqQoLForm','sectionFilters',[['EnableFilterWarnings','checkbox'],['AnimateFilterWarnings','checkbox']]],
             ['jqQoLForm','sectionInterface',[['EnableContextMenu','checkbox'],['EnableSearchOrder','checkbox'],['EnableToastIcons','checkbox'],['EnablePagination','checkbox']]],
             ['jqServicesForm','sectionLinks',[['EnableHeaderLinks','checkbox'],['HeaderLink1Name','text',80],['HeaderLink1Url','url',2048],['HeaderLink2Name','text',80],['HeaderLink2Url','url',2048]]],
@@ -362,11 +367,11 @@
                 const caption=document.createElement('span');caption.dataset.mhText=key;caption.textContent=t(key);
                 let input;
                 if(type==='textarea') {input=document.createElement('textarea');input.rows=key==='AnnouncementMessage'?4:3;}
-                else if(type==='select'){input=document.createElement('select');for(const value of ['top','bottom']){const option=document.createElement('option');option.value=value;option.dataset.mhText=value;option.textContent=t(value);input.appendChild(option);}}
+                else if(type==='select'){input=document.createElement('select');for(const value of (key==='MediaBarSource'?['random','recent']:['top','bottom'])){const option=document.createElement('option');option.value=value;option.dataset.mhText=value;option.textContent=t(value);input.appendChild(option);}}
                 else {input=document.createElement('input');input.type=type;}
                 input.id=id;input.dataset.jqolSetting=key;input.dataset.jqolType=type;
                 if(type!=='checkbox')input.style.cssText='display:block;width:100%;box-sizing:border-box;margin-top:.45em;padding:.7em;background:#8881;border:1px solid #8887;border-radius:4px;color:inherit;font:inherit';
-                if(type==='number'){input.min='0';input.max=String(max);input.step='1';}else if(max)input.maxLength=max;
+                if(type==='number'){input.min=key==='MediaBarItemCount'?'1':key==='MediaBarIntervalSeconds'?'5':'0';input.max=String(max);input.step='1';}else if(max)input.maxLength=max;
                 if(type==='url')input.placeholder='https://example.org/';
                 if(type==='checkbox')label.append(input,caption);else label.append(caption,input);
                 group.appendChild(label);controls.set(key,input);
@@ -375,7 +380,7 @@
         }
         function fill(settings){
             model={...settings};
-            for(const [key,input] of controls){let value=settings[key];const type=input.dataset.jqolType;
+            for(const [key,input] of controls){let value=key.startsWith('MediaBar')?settings.MediaBar?.[key.slice(8)]:settings[key];const type=input.dataset.jqolType;
                 if(type==='checkbox')input.checked=value===true;
                 else if(type==='datetime-local'){const date=value?new Date(value):null;input.value=date&&Number.isFinite(date.getTime())?new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16):'';}
                 else input.value=value==null?(type==='number'?'0':type==='select'?'top':''):String(value);
@@ -383,13 +388,13 @@
             loaded=true;
         }
         function collect(form){
-            const result={...model};
+            const result={...model,MediaBar:{...model.MediaBar}};
             for(const input of form.querySelectorAll('[data-jqol-setting]')){
-                const key=input.dataset.jqolSetting,type=input.dataset.jqolType;
-                if(type==='checkbox')result[key]=input.checked;
-                else if(type==='number'){const value=Number(input.value);if(!Number.isInteger(value)||value<0||value>Number(input.max))throw new Error('Invalid limit');result[key]=value;}
-                else if(type==='datetime-local'){const date=input.value?new Date(input.value):null;if(date&&!Number.isFinite(date.getTime()))throw new Error('Invalid date');result[key]=date?date.toISOString():null;}
-                else result[key]=input.value.trim();
+                const originalKey=input.dataset.jqolSetting,type=input.dataset.jqolType;const target=originalKey.startsWith('MediaBar')?result.MediaBar:result,key=originalKey.startsWith('MediaBar')?originalKey.slice(8):originalKey;
+                if(type==='checkbox')target[key]=input.checked;
+                else if(type==='number'){const value=Number(input.value);if(!Number.isInteger(value)||value<Number(input.min)||value>Number(input.max))throw new Error('Invalid limit');target[key]=value;}
+                else if(type==='datetime-local'){const date=input.value?new Date(input.value):null;if(date&&!Number.isFinite(date.getTime()))throw new Error('Invalid date');target[key]=date?date.toISOString():null;}
+                else target[key]=input.value.trim();
             }
             return result;
         }
@@ -401,14 +406,14 @@
         async function previewModule() {
             if (window.JellyQoLExtras?.previewAnnouncement) return window.JellyQoLExtras;
             if (!previewLoader) previewLoader = new Promise((resolve, reject) => {
-                const script = document.createElement('script'); script.src = apiClient().getUrl('MediaHider/WebExtras.js') + '?v=1.7.1.0';
+                const script = document.createElement('script'); script.src = apiClient().getUrl('MediaHider/WebExtras.js') + '?v=1.8.0.0';
                 script.onload = () => window.JellyQoLExtras?.previewAnnouncement ? resolve(window.JellyQoLExtras) : reject(new Error('Preview unavailable'));
                 script.onerror = () => { script.remove(); previewLoader = null; reject(new Error('Preview unavailable')); };
                 document.head.appendChild(script);
             });
             return previewLoader;
         }
-        for(const id of ['jqQoLForm','jqServicesForm','jqAnnouncementForm']){
+        for(const id of ['jqQoLForm','jqServicesForm','jqAnnouncementForm','jqMediaBarForm']){
             const form=page.querySelector('#'+id);if(!form)continue;
             if(id==='jqAnnouncementForm'){const hint=document.createElement('p');hint.dataset.mhText='limitsHelp';hint.textContent=t('limitsHelp');form.appendChild(hint);}
             const button=document.createElement('button');button.type='submit';button.className='raised button-submit emby-button';button.dataset.mhText='save';button.textContent=t('save');form.appendChild(button);

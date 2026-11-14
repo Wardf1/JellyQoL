@@ -1,6 +1,7 @@
 namespace Jellyfin.Plugin.MediaHider;
 public sealed record QoLSettings
 {
+    public MediaBarSettings MediaBar { get; set; } = new();
     public bool EnableFilterWarnings { get; set; } = true;
     public bool AnimateFilterWarnings { get; set; } = true;
     public bool EnableHeaderLinks { get; set; } = true;
@@ -44,6 +45,7 @@ public sealed record QoLSettings
             return result;
         }
         var result = this with {
+            MediaBar = (MediaBar ?? new()).Validated() with { },
             HeaderLink1Name = Text(HeaderLink1Name, 80), HeaderLink2Name = Text(HeaderLink2Name, 80),
             HeaderLink1Url = Url(HeaderLink1Url), HeaderLink2Url = Url(HeaderLink2Url),
             AnnouncementTitle = Text(AnnouncementTitle, 160), AnnouncementMessage = Text(AnnouncementMessage, 4000),

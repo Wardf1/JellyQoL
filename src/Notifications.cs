@@ -28,6 +28,7 @@ public sealed class NotificationPreferences
     public bool HideHeaderLibraries { get; set; }
     public Guid[] HiddenHeaderLibraryIds { get; set; } = [];
     public bool FavoritesAsIcon { get; set; } = true;
+    public bool MediaBarTrailers { get; set; }
 }
 public sealed class NotificationRecord
 {

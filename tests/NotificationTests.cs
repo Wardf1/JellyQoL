@@ -7,6 +7,7 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Serialization;
 using MediaBrowser.Model.Users;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -161,4 +162,36 @@ public sealed class NotificationTests
         var restarted = f.NewService(); Assert.Equal(libraryId, Assert.Single(restarted.Feed(a.Id).Preferences.HiddenHeaderLibraryIds)); restarted.Dispose();
         Assert.Throws<ArgumentException>(() => f.Service.Preferences(a.Id, new() { HiddenHeaderLibraryIds = [Guid.Empty] }));
         Assert.True(f.Service.Feed(a.Id).Preferences.HideHeaderLibraries);
+    }    [Fact] public void MediaBarUsesAdminSettingsAndRechecksNativeAndMediaHiderAccess()
+    {
+        using var f = new Fixture(); var user = f.User(); var a = f.Item<Movie>(); var b = f.Item<Movie>();
+        foreach (var item in new[] { a, b }) item.SetImage(new ItemImageInfo { Type = ImageType.Backdrop, Path = "/media/backdrop.jpg" }, 0);
+        f.Plugin.Configuration.QoL.MediaBar = new() { Enabled = true, Source = "recent", ItemCount = 1, AutoRotate = false };
+        var feed = f.Service.MediaBar(user.Id); Assert.Single(feed.Items); Assert.False(feed.Settings.AutoRotate); Assert.False(feed.TrailersEnabled);
+        f.Denied.UnionWith([a.Id, b.Id]); Assert.Empty(f.Service.MediaBar(user.Id).Items); f.Denied.Clear();
+        f.Plugin.Configuration.HiddenItemIds = [a.Id, b.Id]; Assert.Empty(f.Service.MediaBar(user.Id).Items);
+        f.Plugin.Configuration.HiddenItemIds = []; f.Plugin.Configuration.QoL.MediaBar.Enabled = false; Assert.Empty(f.Service.MediaBar(user.Id).Items);
+        Assert.Throws<UnauthorizedAccessException>(() => f.Service.MediaBar(Guid.NewGuid()));
+    }
+    [Fact] public void MediaBarTrailersAreOffUntilTheAccountOptsInAndYoutubeUrlsAreRestricted()
+    {
+        using var f = new Fixture(); var user = f.User(); var movie = f.Item<Movie>();
+        movie.SetImage(new ItemImageInfo { Type = ImageType.Backdrop, Path = "/media/backdrop.jpg" }, 0);
+        movie.RemoteTrailers = [new MediaUrl { Url = "https://www.youtube.com/watch?v=M7lc1UVf-VE" }];
+        Assert.Null(Assert.Single(f.Service.MediaBar(user.Id).Items).Trailer);
+        f.Service.Preferences(user.Id, new() { MediaBarTrailers = true });
+        Assert.Equal("M7lc1UVf-VE", Assert.Single(f.Service.MediaBar(user.Id).Items).Trailer?.YouTubeId);
+        Assert.Null(NotificationService.YouTubeId("https://evil.example/watch?v=M7lc1UVf-VE"));
+        Assert.Null(NotificationService.YouTubeId("https://youtube.com.evil.example/watch?v=M7lc1UVf-VE"));
+        Assert.Null(NotificationService.YouTubeId("http://youtube.com/watch?v=M7lc1UVf-VE"));
+        Assert.Null(NotificationService.YouTubeId("https://user:password@youtube.com/watch?v=M7lc1UVf-VE"));
+        Assert.Equal("M7lc1UVf-VE", NotificationService.YouTubeId("https://youtu.be/M7lc1UVf-VE"));
+    }
+    [Fact] public void MediaBarSettingsHaveBoundedValuesAndPreserveExistingQoLSettings()
+    {
+        Assert.Throws<ArgumentException>(() => new QoLSettings { MediaBar = new() { ItemCount = 0 } }.Validated());
+        Assert.Throws<ArgumentException>(() => new QoLSettings { MediaBar = new() { IntervalSeconds = 1 } }.Validated());
+        Assert.Throws<ArgumentException>(() => new QoLSettings { MediaBar = new() { Source = "arbitrary" } }.Validated());
+        var value = new QoLSettings { EnablePagination = false, MediaBar = new() { Enabled = false, Source = "recent" } }.Validated();
+        Assert.False(value.EnablePagination); Assert.False(value.MediaBar.Enabled); Assert.Equal("recent", value.MediaBar.Source);
     }}

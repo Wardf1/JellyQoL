@@ -41,4 +41,10 @@ public sealed class ClientAssetsController : ControllerBase
     {
         var stream = typeof(Plugin).Assembly.GetManifestResourceStream("Jellyfin.Plugin.MediaHider.src.NotificationClient.js");
         return stream is null ? NotFound() : File(stream, "application/javascript; charset=utf-8");
+    }    [AllowAnonymous]
+    [HttpGet("MediaBar.js")]
+    public ActionResult MediaBar()
+    {
+        var stream = typeof(Plugin).Assembly.GetManifestResourceStream("Jellyfin.Plugin.MediaHider.src.MediaBar.js");
+        return stream is null ? NotFound() : File(stream, "application/javascript; charset=utf-8");
     }}

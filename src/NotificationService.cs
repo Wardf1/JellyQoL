@@ -13,7 +13,7 @@ using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.MediaHider;
-public sealed class NotificationService : BackgroundService
+public sealed partial class NotificationService : BackgroundService
 {
     private readonly ILibraryManager _library;
     private readonly IUserManager _users;

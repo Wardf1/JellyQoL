@@ -2,12 +2,20 @@
   {
     "guid": "6801f019-837b-4c81-a542-572e55d871ba",
     "name": "Jelly QoL",
-    "description": "Quality-of-life features for Jellyfin 12.1: blinking filter warnings, configurable service shortcuts, search ordering, native context menus, pagination, announcements and media visibility. English and Polish.",
-    "overview": "Media Hider, QoL, Services and Announcements settings.",
+    "description": "Quality-of-life features for Jellyfin 12.1: Media Bar, filter warnings, service shortcuts, search ordering, context menus, pagination, announcements, notifications and media visibility. English and Polish.",
+    "overview": "Media Hider, QoL, Media Bar, Services, Announcements and Notifications.",
     "owner": "Wardf1",
     "category": "General",
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
+      {
+        "version": "1.8.0.0",
+        "timestamp": "2026-11-14T18:08:38Z",
+        "changelog": "Added an isolated Home-only Media Bar with administrator-controlled on/off, title source, count, rotation, synopsis and compact height. Per-account trailer opt-in in Appearance; muted local and YouTube previews. Respects library access and Media Hider, avoids detected existing bars. Profile categories: Appearance, Notifications, Notification history.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "b656bc2cfa466c97c9afb24c2ca9037e",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.8.0.0/JellyQoL_1.8.0.0.zip"
+      },
       {
         "version": "1.7.1.0",
         "timestamp": "2026-11-14T17:26:51Z",

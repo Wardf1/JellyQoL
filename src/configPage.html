@@ -9,6 +9,7 @@
     <div role="tablist" aria-label="Jelly QoL" style="display:flex;flex-wrap:wrap;gap:.5em;margin:1.5em 0;border-bottom:1px solid #8885;padding-bottom:.75em">
       <button type="button" role="tab" id="jqMediaTab" aria-controls="jqMediaPanel" aria-selected="true" class="emby-button">Media Hider</button>
       <button type="button" role="tab" id="jqQoLTab" aria-controls="jqQoLPanel" aria-selected="false" tabindex="-1" class="emby-button">QoL</button>
+      <button type="button" role="tab" id="jqMediaBarTab" aria-controls="jqMediaBarPanel" aria-selected="false" tabindex="-1" class="emby-button">Media Bar</button>
       <button type="button" role="tab" id="jqServicesTab" aria-controls="jqServicesPanel" aria-selected="false" tabindex="-1" class="emby-button">Services</button>
       <button type="button" role="tab" id="jqAnnouncementsTab" aria-controls="jqAnnouncementsPanel" aria-selected="false" tabindex="-1" class="emby-button" data-mh-text="announcements">Announcements</button>
     </div>
@@ -17,6 +18,7 @@
       <h2>QoL</h2><p data-mh-text="filtersScope">These settings apply to all accounts in the server web client. Other open clients update within 30 seconds.</p>
       <form id="jqQoLForm"></form>
     </section>
+    <section role="tabpanel" id="jqMediaBarPanel" aria-labelledby="jqMediaBarTab" hidden><h2>Media Bar</h2><p data-mh-text="mediaBarHelp">Configure the featured bar for all accounts. Users control trailers in Appearance.</p><form id="jqMediaBarForm"></form></section>
     <section role="tabpanel" id="jqServicesPanel" aria-labelledby="jqServicesTab" hidden>
       <h2>Services</h2><p data-mh-text="servicesHelp">Configure shortcuts in the header. Leave a URL empty to hide that shortcut.</p>
       <form id="jqServicesForm"></form>
@@ -63,10 +65,10 @@
 <script>
 (function () {
     var page = document.querySelector('#mediaHiderPage');
-    if (!window.JellyQoLNotifications) { var notifications = document.createElement('script'); notifications.src = ApiClient.getUrl('MediaHider/NotificationClient.js') + '?v=1.7.1.0'; document.head.appendChild(notifications); }
+    if (!window.JellyQoLNotifications) { var notifications = document.createElement('script'); notifications.src = ApiClient.getUrl('MediaHider/NotificationClient.js') + '?v=1.8.0.0'; document.head.appendChild(notifications); }
     if (window.MediaHiderUI) { window.MediaHiderUI.initializePanel(page); return; }
     var loader = document.createElement('script');
-    loader.src = ApiClient.getUrl('MediaHider/Client.js') + '?v=1.7.1.0';
+    loader.src = ApiClient.getUrl('MediaHider/Client.js') + '?v=1.8.0.0';
     loader.onload = function () { window.MediaHiderUI.initializePanel(page); };
     loader.onerror = function () { page.querySelector('#mhStatus').textContent = /^pl/i.test(document.documentElement.lang || navigator.language) ? 'Nie udało się załadować panelu Jelly QoL.' : 'Could not load the Jelly QoL panel.'; };
     document.head.appendChild(loader);

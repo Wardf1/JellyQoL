@@ -12,6 +12,8 @@ public sealed class NotificationsController(NotificationService service) : Contr
     private Guid AccountId => Guid.TryParse(User.FindFirstValue("Jellyfin-UserId"), out var id) && id != Guid.Empty ? id : throw new UnauthorizedAccessException();
     [HttpGet]
     public ActionResult<NotificationFeed> Feed([FromQuery] bool popup = false, [FromQuery] int offset = 0) => Ok(service.Feed(AccountId, popup, offset));
+    [HttpGet("MediaBar")]
+    public ActionResult<MediaBarFeed> MediaBar() => Ok(service.MediaBar(AccountId));
     [HttpPost("Preferences")]
     public ActionResult Preferences([FromBody] NotificationPreferences value) { try { service.Preferences(AccountId, value); return NoContent(); } catch (ArgumentException ex) { return BadRequest(ex.Message); } }
     [HttpPost("History/Clear")]
