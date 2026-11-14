@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.9.3.0",
+        "timestamp": "2026-11-14T20:31:35Z",
+        "changelog": "Aligned complementary artwork/player masks to prevent backdrop overlap. Left-side blur and opaque darkening stop at the trailer boundary; a narrow translucent dark veil gently overlaps and fades out along the player edge. Increased animated backdrop shift to 30% of bar width and aligned mobile mask geometry.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "186cb78cf4a0e22abbc8baa97e6d3643",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.9.3.0/JellyQoL_1.9.3.0.zip"
+      },
+      {
         "version": "1.9.2.0",
         "timestamp": "2026-11-14T20:20:58Z",
         "changelog": "Fixed 1.4-second slide/crossfade transitions retain outgoing media until artwork is ready; removed duration control. Curved trailer boundary from 35% top to 55% bottom, matching backdrop transparency, animated 20% left shift over one second, header underlay. Added per-account default trailer sound, off by default, with muted autoplay fallback. Seerr skips stale movies and season episodes already available in Jellyfin, with diagnostics and native availability tracking.",
