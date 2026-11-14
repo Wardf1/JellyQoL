@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.7.0.0",
+        "timestamp": "2026-11-14T14:28:40Z",
+        "changelog": "Added per-account Appearance settings to hide all or selected header library shortcuts and show Favorites as a heart beside the notification bell. The profile menu uses the supplied user-attributes icon at its original 24px size. Notification panels close on outside clicks. Added Clear notification history for the current account only, preserving preferences and future notifications. Removed the premature Seerr-account-link notice.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "8b69d2ea4611e7b218ffe6b9610435b8",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.7.0.0/JellyQoL_1.7.0.0.zip"
+      },
+      {
         "version": "1.6.4.0",
         "timestamp": "2026-11-12T11:02:09Z",
         "changelog": "Removed the About section from the profile settings panel. Notifications and History remain available.",

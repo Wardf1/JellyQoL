@@ -25,6 +25,9 @@ public sealed class NotificationPreferences
     public bool Series { get; set; } = true;
     public bool Episodes { get; set; } = true;
     public bool OnlyOwnRequests { get; set; }
+    public bool HideHeaderLibraries { get; set; }
+    public Guid[] HiddenHeaderLibraryIds { get; set; } = [];
+    public bool FavoritesAsIcon { get; set; } = true;
 }
 public sealed class NotificationRecord
 {

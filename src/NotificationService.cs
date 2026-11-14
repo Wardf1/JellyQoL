@@ -192,7 +192,18 @@ public sealed class NotificationService : BackgroundService
         if (newAccount) Save(); return new NotificationFeed(account.Preferences, _data.Options.Enabled,
             _data.Options.AccountMappings.ContainsValue(userId) || _data.Records.Any(x => x.RequestedBy.Contains(userId)), unread, items);
     });
-    public void Preferences(Guid userId, NotificationPreferences preferences) => Locked(() => { Account(userId).Preferences = preferences; Save(); return true; });
+    public void Preferences(Guid userId, NotificationPreferences preferences) => Locked(() => {
+        var hidden = preferences.HiddenHeaderLibraryIds ?? [];
+        if (hidden.Length > 1000 || hidden.Any(id => id == Guid.Empty)) throw new ArgumentException("Invalid header library selection.");
+        preferences.HiddenHeaderLibraryIds = hidden.Distinct().ToArray();
+        Account(userId).Preferences = preferences; Save(); return true;
+    });
+    public void ClearHistory(Guid userId) => Locked(() => {
+        var account = Account(userId);
+        account.Since = DateTime.UtcNow;
+        account.Shown.Clear(); account.Read.Clear(); account.Deferred.Clear();
+        Save(); return true;
+    });
     public Guid[] Act(Guid userId, NotificationAction action) => Locked(() => {
         if (action.Ids.Length > 1000 || action.Action is not ("shown" or "read" or "later" or "claim" or "release")) throw new ArgumentException("Invalid notification action.");
         var account = Account(userId); var allowed = Eligible(userId).Select(x => x.Record.Id).ToHashSet();

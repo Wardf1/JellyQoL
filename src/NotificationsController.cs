@@ -13,7 +13,9 @@ public sealed class NotificationsController(NotificationService service) : Contr
     [HttpGet]
     public ActionResult<NotificationFeed> Feed([FromQuery] bool popup = false, [FromQuery] int offset = 0) => Ok(service.Feed(AccountId, popup, offset));
     [HttpPost("Preferences")]
-    public ActionResult Preferences([FromBody] NotificationPreferences value) { service.Preferences(AccountId, value); return NoContent(); }
+    public ActionResult Preferences([FromBody] NotificationPreferences value) { try { service.Preferences(AccountId, value); return NoContent(); } catch (ArgumentException ex) { return BadRequest(ex.Message); } }
+    [HttpPost("History/Clear")]
+    public ActionResult ClearHistory() { service.ClearHistory(AccountId); return NoContent(); }
     [HttpPost("Actions")]
     public ActionResult Actions([FromBody] NotificationAction value) { try { return Ok(service.Act(AccountId, value)); } catch (ArgumentException ex) { return BadRequest(ex.Message); } }
     [HttpGet("Admin")]

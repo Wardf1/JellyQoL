@@ -137,4 +137,28 @@ public sealed class NotificationTests
         var parsed = SeerrWebhook.Parse(JsonSerializer.SerializeToElement(new { notification_type = "MEDIA_AVAILABLE", mediaType = "tv", tmdbId = "123", tvdbId = "{{media_tvdbid}}", extra = new[] { new { name = "Requested Seasons", value = "1, 2" } } }));
         Assert.NotNull(parsed); Assert.Equal("1, 2", parsed.Seasons); Assert.Empty(parsed.TvdbId);
     }
-}
+    [Fact] public void ClearingHistoryAffectsOnlyTheCurrentAccountAndSurvivesRestart()
+    {
+        using var f = new Fixture(); var a = f.User(); var b = f.User(); f.Enable();
+        f.Service.Preferences(a.Id, new() { Popups = false });
+        var movie = f.Item<Movie>(); f.Receive(movie);
+        Assert.Single(f.Service.Feed(a.Id).Items); Assert.Single(f.Service.Feed(b.Id).Items);
+        f.Service.ClearHistory(a.Id);
+        Assert.Empty(f.Service.Feed(a.Id).Items); Assert.Equal(0, f.Service.Feed(a.Id).Unread);
+        Assert.Single(f.Service.Feed(b.Id).Items); Assert.False(f.Service.Feed(a.Id).Preferences.Popups);
+        var restarted = f.NewService(); Assert.Empty(restarted.Feed(a.Id).Items); restarted.Dispose();
+        var next = f.Item<Movie>(); f.Receive(next);
+        Assert.Single(f.Service.Feed(a.Id).Items); Assert.Equal(2, f.Service.Feed(b.Id).Items.Length);
+        Assert.Throws<UnauthorizedAccessException>(() => f.Service.ClearHistory(Guid.NewGuid()));
+    }    [Fact] public void AppearancePreferencesAreAccountScopedValidatedAndPersisted()
+    {
+        using var f = new Fixture(); var a = f.User(); var b = f.User(); var libraryId = Guid.NewGuid();
+        f.Service.Preferences(a.Id, new() { HideHeaderLibraries = true, HiddenHeaderLibraryIds = [libraryId, libraryId], FavoritesAsIcon = false });
+        var own = f.Service.Feed(a.Id).Preferences;
+        Assert.True(own.HideHeaderLibraries); Assert.Single(own.HiddenHeaderLibraryIds); Assert.False(own.FavoritesAsIcon);
+        var other = f.Service.Feed(b.Id).Preferences;
+        Assert.False(other.HideHeaderLibraries); Assert.Empty(other.HiddenHeaderLibraryIds); Assert.True(other.FavoritesAsIcon);
+        var restarted = f.NewService(); Assert.Equal(libraryId, Assert.Single(restarted.Feed(a.Id).Preferences.HiddenHeaderLibraryIds)); restarted.Dispose();
+        Assert.Throws<ArgumentException>(() => f.Service.Preferences(a.Id, new() { HiddenHeaderLibraryIds = [Guid.Empty] }));
+        Assert.True(f.Service.Feed(a.Id).Preferences.HideHeaderLibraries);
+    }}
