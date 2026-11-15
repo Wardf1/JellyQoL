@@ -6,6 +6,7 @@ using Jellyfin.Data.Enums;
 using Jellyfin.Database.Implementations.Entities;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Drawing;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -16,15 +17,16 @@ namespace Jellyfin.Plugin.MediaHider;
 public sealed partial class NotificationService : BackgroundService
 {
     private readonly ILibraryManager _library;
+    private readonly IImageProcessor _imageProcessor;
     private readonly IUserManager _users;
     private readonly ILogger<NotificationService> _logger;
     private readonly string _path;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ConcurrentDictionary<Guid, DateTime> _added = new();
     private NotificationData _data;
-    public NotificationService(ILibraryManager library, IUserManager users, IApplicationPaths paths, ILogger<NotificationService> logger)
+    public NotificationService(ILibraryManager library, IUserManager users, IApplicationPaths paths, ILogger<NotificationService> logger, IImageProcessor imageProcessor)
     {
-        _library = library; _users = users; _logger = logger;
+        _library = library; _users = users; _logger = logger; _imageProcessor = imageProcessor;
         _path = Path.Combine(paths.PluginConfigurationsPath, "JellyQoL.notifications.json");
         // A damaged store must fail visibly rather than replaying all notifications or resetting secrets.
         _data = File.Exists(_path) ? JsonSerializer.Deserialize<NotificationData>(File.ReadAllText(_path)) ?? throw new InvalidDataException("Empty notification store.") : new();

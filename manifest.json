@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.9.5.0",
+        "timestamp": "2026-11-15T11:39:05Z",
+        "changelog": "Full Media Bar slide-list refresh includes native Jellyfin version tags for logos and backdrops, all rendered metadata, inactive slide labels/preloads and trailer metadata. Stable image versions are not reloaded, and stale image callbacks cannot overwrite current content. Added per-user available season counts for series, excluding season 0, empty seasons and virtual/missing episodes.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "a67de63cbd3643e782ece0057f1a6a3d",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.9.5.0/JellyQoL_1.9.5.0.zip"
+      },
+      {
         "version": "1.9.4.0",
         "timestamp": "2026-11-14T20:48:08Z",
         "changelog": "Removed black edge overlays, backdrop blur and double-cut masks. Only the artwork fades broadly over an opaque trailer, preventing a dark seam. Widened the partial-opacity region to about 20% of bar width. Simplified the bottom fade and kept the last trailer frame visible during buffering. Preserved the 30% artwork shift, 35–55% arc and existing timing.",

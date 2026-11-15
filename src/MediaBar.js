@@ -32,7 +32,7 @@
     function button(symbol,label,action) {const node=e('button');node.type='button';node.append(icon(symbol));node.setAttribute('aria-label',label);node.title=label;node.addEventListener('click',action);return node;}
     function remove() {clearOutgoing();lastItemId='';stopTrailer();host?.remove();host=null;shadow=null;nodes=null;renderSignature='';hovered=false;}
     function reset() {generation++;loading=false;nextLoad=0;settings=null;items=[];current=0;paused=false;pendingPlay=null;prefSignature='';remove();}
-    function imageUrl(id,type,width) {return api().getImageUrl(id,{type,maxWidth:width,quality:90});}
+    function imageUrl(id,type,width,tag) {return api().getImageUrl(id,{type,maxWidth:width,quality:90,...(typeof tag==='string'&&tag?{tag}: {})});}
     function mount(pane) {
         if(host?.isConnected)return;
         remove();host=e('jelly-qol-media-bar');host.id='jelly-qol-media-bar';host.style.cssText='display:block!important;position:relative!important;isolation:isolate!important;box-sizing:border-box!important;min-width:0!important;width:100%!important;margin:16px 0 24px!important;z-index:0!important';
@@ -70,7 +70,7 @@
     }
     function render(force=false) {
         if(!nodes||!items.length)return;
-        const item=items[current],signature=JSON.stringify([item,settings,items.map(x=>x.Id),trailersEnabled,trailerAutoplay,trailerDelay,trailerSound,lang()]);if(!force&&signature===renderSignature)return;renderSignature=signature;
+        const item=items[current],signature=JSON.stringify([items,settings,current,trailersEnabled,trailerAutoplay,trailerDelay,trailerSound,lang()]);if(!force&&signature===renderSignature)return;renderSignature=signature;
         prepareTransition(item.Id);
         const banner=settings.Layout!=='card';nodes.section.classList.toggle('banner',banner);
         host.style.setProperty('margin',banner?'calc(-1 * var(--jqmb-header-height,0px)) 0 0':'16px 0 0','important');alignHeader();
@@ -80,15 +80,25 @@
         nodes.overview.style.webkitLineClamp=String(settings.OverviewLines||3);
         nodes.dots.hidden=settings.ShowDots===false;nodes.play.parentElement.hidden=settings.ShowButtons===false;
         nodes.section.classList.toggle('compact',Boolean(settings.Compact));nodes.section.setAttribute('aria-label',words().featured);
-        const url=imageUrl(item.Id,'Backdrop',1920),image=nodes.backdrop;
+        const url=imageUrl(item.Id,'Backdrop',1920,item.BackdropImageTag),image=nodes.backdrop;
         image.onload=()=>{if(nodes?.backdrop!==image)return;image.hidden=false;revealTransition();};image.onerror=()=>{if(nodes?.backdrop===image)revealTransition();};
-        if(image.getAttribute('src')!==url){image.hidden=true;image.src=url;}
+        if(image.getAttribute('src')!==url){if(!image.getAttribute('src'))image.hidden=true;image.src=url;}
         else if(image.complete&&image.naturalWidth){image.hidden=false;revealTransition();}
-        nodes.logo.hidden=true;nodes.title.hidden=false;
-        if(item.HasLogo&&settings.ShowLogo!==false){const logoUrl=imageUrl(item.Id,'Logo',500);nodes.logo.onload=()=>{if(nodes?.logo.getAttribute('src')===logoUrl){nodes.logo.hidden=false;nodes.title.hidden=true;}};nodes.logo.onerror=()=>{if(nodes){nodes.logo.hidden=true;nodes.title.hidden=false;}};nodes.logo.src=logoUrl;}else nodes.logo.removeAttribute('src');
+        const logo=nodes.logo;
+        if(item.HasLogo&&settings.ShowLogo!==false){
+            const logoUrl=imageUrl(item.Id,'Logo',500,item.LogoImageTag);
+            logo.onload=()=>{if(nodes?.logo===logo&&logo.getAttribute('src')===logoUrl){logo.hidden=false;nodes.title.hidden=true;}};
+            logo.onerror=()=>{if(nodes?.logo===logo&&logo.getAttribute('src')===logoUrl){logo.hidden=true;nodes.title.hidden=false;}};
+            if(logo.getAttribute('src')!==logoUrl){logo.hidden=true;nodes.title.hidden=false;logo.src=logoUrl;}
+            else if(logo.complete&&logo.naturalWidth){logo.hidden=false;nodes.title.hidden=true;}
+        }else{logo.onload=logo.onerror=null;logo.removeAttribute('src');logo.hidden=true;nodes.title.hidden=false;}
         nodes.title.textContent=item.Name;nodes.logo.alt=item.Name;nodes.meta.replaceChildren();
         const bits=[item.Type==='Series'?words().series:words().movie,item.Year,item.OfficialRating];
         for(const value of bits.filter(value=>value!=null&&value!==''))nodes.meta.append(e('span',String(value)));
+        if(item.Type==='Series'&&Number.isInteger(item.SeasonCount)&&item.SeasonCount>=0){
+            const count=item.SeasonCount,word=lang()?(count===1?'Sezon':count%10>=2&&count%10<=4&&(count%100<12||count%100>14)?'Sezony':'Sezonów'):(count===1?'Season':'Seasons');
+            nodes.meta.append(e('span',count+' '+word,'seasons'));
+        }
         if(settings.ShowRating!==false&&Number.isFinite(item.CommunityRating)&&item.CommunityRating>0){const rating=e('span',null,'rating');rating.append(icon('star'),e('span',item.CommunityRating.toFixed(1)));nodes.meta.append(rating);}
         if(settings.ShowGenres!==false&&Array.isArray(item.Genres))for(const genre of item.Genres.slice(0,2))nodes.meta.append(e('span',genre,'genre'));
         nodes.overview.textContent=item.Overview||'';nodes.overview.hidden=!settings.ShowOverview||!item.Overview;
@@ -96,7 +106,7 @@
         nodes.count.textContent=(current+1)+' / '+items.length;nodes.previous.disabled=nodes.next.disabled=items.length<2;nodes.pause.hidden=items.length<2||!settings.AutoRotate;
         nodes.dots.replaceChildren();items.forEach((entry,index)=>{const dot=e('button');dot.type='button';dot.setAttribute('aria-label',words().slide+' '+(index+1)+': '+entry.Name);dot.setAttribute('aria-pressed',String(index===current));dot.addEventListener('click',()=>{transitionDirection=index>=current?1:-1;current=index;lastRotation=Date.now();render();nodes.announcement.textContent=entry.Name;});nodes.dots.append(dot);});
         nodes.preview.hidden=!trailersEnabled||!item.Trailer;
-        preloaded=[];for(let n=1;n<=Math.min(settings.PreloadCount??2,items.length-1);n++){const img=new Image();img.src=imageUrl(items[(current+n)%items.length].Id,'Backdrop',1920);preloaded.push(img);}
+        preloaded=[];for(let n=1;n<=Math.min(settings.PreloadCount??2,items.length-1);n++){const img=new Image();img.src=imageUrl(items[(current+n)%items.length].Id,'Backdrop',1920,items[(current+n)%items.length].BackdropImageTag);preloaded.push(img);}
         updatePause();lastRotation=Date.now();startTrailer(item);
     }
     function clearOutgoing(){

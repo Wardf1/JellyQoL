@@ -20,6 +20,7 @@ public sealed class NotificationTests
     {
         public readonly string Directory = Path.Combine(Path.GetTempPath(), "jellyqol-test-" + Guid.NewGuid().ToString("N"));
         public readonly Mock<ILibraryManager> Library = new();
+        public readonly Mock<MediaBrowser.Controller.Drawing.IImageProcessor> Images = new();
         public readonly Mock<IUserManager> Users = new();
         public readonly Mock<IApplicationPaths> Paths = new();
         public readonly List<BaseItem> Items = [];
@@ -37,6 +38,7 @@ public sealed class NotificationTests
             Library.Setup(x => x.GetItemById(It.IsAny<Guid>())).Returns((Guid id) => Items.FirstOrDefault(x => x.Id == id));
             Library.Setup(x => x.GetItemById<BaseItem>(It.IsAny<Guid>(), It.IsAny<User>())).Returns((Guid id, User _) => Denied.Contains(id) ? null : Items.FirstOrDefault(x => x.Id == id));
             Library.Setup(x => x.GetItemList(It.IsAny<InternalItemsQuery>())).Returns((InternalItemsQuery q) => (IReadOnlyList<BaseItem>)Items.Where(x =>
+                (q.User is null || !Denied.Contains(x.Id)) &&
                 (q.AncestorIds.Length == 0 || x.GetParents().Any(p => q.AncestorIds.Contains(p.Id))) &&
                 (q.HasAnyProviderId == null || q.HasAnyProviderId.Any(p => x.ProviderIds.TryGetValue(p.Key, out var v) && v == p.Value))).ToArray());
             BaseItem.LibraryManager = Library.Object;
@@ -45,7 +47,7 @@ public sealed class NotificationTests
             Users.Setup(x => x.GetUserDto(It.IsAny<User>(), It.IsAny<string?>())).Returns(new UserDto { Policy = Policy });
             Service = NewService();
         }
-        public NotificationService NewService() => new(Library.Object, Users.Object, Paths.Object, NullLogger<NotificationService>.Instance);
+        public NotificationService NewService() => new(Library.Object, Users.Object, Paths.Object, NullLogger<NotificationService>.Instance, Images.Object);
         public User User() { var user = new User(Guid.NewGuid().ToString(), "auth", "reset"); Accounts.Add(user); return user; }
         public T Item<T>(BaseItem? parent = null) where T : BaseItem, new() { var item = new T { Id = Guid.NewGuid(), Name = "Title", Path = "/media/title.mkv", ParentId = parent?.Id ?? Guid.Empty, DateCreated = DateTime.UtcNow };Items.Add(item);return item; }
         public void Enable() => Service.Configure(new NotificationOptions { Enabled = true });
@@ -232,5 +234,28 @@ public sealed class NotificationTests
         var movie=f.Item<Movie>();movie.DateCreated=DateTime.UtcNow.AddDays(-30);f.Service.QueueItem(movie);f.Receive(movie);Assert.Single(f.Service.Feed(user.Id).Items);
         var restarted=f.NewService();restarted.Receive(JsonSerializer.SerializeToElement(new{notification_type="MEDIA_AVAILABLE",mediaType="movie",jellyfinMediaId=movie.Id,request_id="another"}));restarted.ProcessPending();
         Assert.Single(restarted.Feed(user.Id).Items);Assert.Equal(0,JsonSerializer.SerializeToElement(restarted.Diagnostics()).GetProperty("IgnoredExisting").GetInt32());restarted.Dispose();
+    }
+
+    [Fact] public void MediaBarRefreshesAllMetadataAndNativeImageTagsWithoutReplacingTheCachedSelection()
+    {
+        using var f=new Fixture();var user=f.User();var movie=f.Item<Movie>();f.Plugin.Configuration.QoL.MediaBar.ItemCount=1;
+        movie.SetImage(new(){Type=ImageType.Backdrop,Path="/media/backdrop.jpg"},0);movie.SetImage(new(){Type=ImageType.Logo,Path="/media/logo.png"},0);
+        var logo="logo-v1";var backdrop="backdrop-v1";
+        f.Images.Setup(x=>x.GetImageCacheTag(It.IsAny<BaseItem>(),It.IsAny<ItemImageInfo>())).Returns((BaseItem _,ItemImageInfo image)=>image.Type==ImageType.Logo?logo:backdrop);
+        var first=Assert.Single(f.Service.MediaBar(user.Id).Items);Assert.Equal("logo-v1",first.LogoImageTag);Assert.Equal("backdrop-v1",first.BackdropImageTag);
+        movie.Name="Updated title";movie.Overview="Updated overview";movie.ProductionYear=2027;movie.CommunityRating=9.1f;movie.OfficialRating="16";movie.Genres=["Updated genre"];movie.RemoteTrailers=[new(){Url="https://youtu.be/M7lc1UVf-VE"}];logo="logo-v2";backdrop="backdrop-v2";
+        var updated=Assert.Single(f.Service.MediaBar(user.Id).Items);Assert.Equal(first.Id,updated.Id);Assert.Equal("Updated title",updated.Name);Assert.Equal("Updated overview",updated.Overview);Assert.Equal(2027,updated.Year);Assert.Equal(9.1f,updated.CommunityRating);Assert.Equal("16",updated.OfficialRating);Assert.Equal("Updated genre",Assert.Single(updated.Genres));Assert.Equal("logo-v2",updated.LogoImageTag);Assert.Equal("backdrop-v2",updated.BackdropImageTag);Assert.Equal("M7lc1UVf-VE",updated.Trailer?.YouTubeId);
+        f.Library.Verify(x=>x.GetItemList(It.Is<InternalItemsQuery>(q=>q.IncludeItemTypes.Contains(Jellyfin.Data.Enums.BaseItemKind.Movie)&&q.IncludeItemTypes.Contains(Jellyfin.Data.Enums.BaseItemKind.Series))),Times.Once);
+    }
+    [Fact] public void MediaBarCountsOnlyAccessibleNonSpecialSeasonsWithPlayableEpisodesAndRefreshesTheCount()
+    {
+        using var f=new Fixture();var user=f.User();var series=f.Item<Series>();f.Service.Preferences(user.Id,new(){MediaBarTrailers=false});series.SetImage(new(){Type=ImageType.Backdrop,Path="/media/backdrop.jpg"},0);
+        Episode Episode(int season){var e=f.Item<Episode>(series);e.ParentIndexNumber=season;return e;}
+        Episode(0);Episode(1);Episode(1);var empty=f.Item<Season>(series);empty.IndexNumber=2;
+        Episode(3).IsVirtualItem=true;Episode(4).Path="";var denied=Episode(5);f.Denied.Add(denied.Id);Episode(6);Episode(-1);
+        Assert.Equal(2,Assert.Single(f.Service.MediaBar(user.Id).Items).SeasonCount);
+        Episode(2);Assert.Equal(3,Assert.Single(f.Service.MediaBar(user.Id).Items).SeasonCount);
+        f.Denied.Clear();Assert.Equal(4,Assert.Single(f.Service.MediaBar(user.Id).Items).SeasonCount);
+        f.Library.Verify(x=>x.GetItemList(It.Is<InternalItemsQuery>(q=>q.IncludeItemTypes.Contains(Jellyfin.Data.Enums.BaseItemKind.Episode)&&q.User==user&&q.ParentIndexNumberNotEquals==0)),Times.Exactly(3));
     }
 }

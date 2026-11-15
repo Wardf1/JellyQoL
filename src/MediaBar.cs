@@ -36,7 +36,7 @@ public sealed record MediaBarSettings
         return this;
     }
 }
-public sealed record MediaBarItem(Guid Id, string Name, string Type, int? Year, float? CommunityRating, string? OfficialRating, string Overview, string[] Genres, bool HasLogo, MediaBarTrailer? Trailer);
+public sealed record MediaBarItem(Guid Id, string Name, string Type, int? Year, float? CommunityRating, string? OfficialRating, string Overview, string[] Genres, bool HasLogo, MediaBarTrailer? Trailer, string? LogoImageTag = null, string? BackdropImageTag = null, int? SeasonCount = null);
 public sealed record MediaBarTrailer(string Kind, Guid? ItemId = null, string? YouTubeId = null);
 public sealed record MediaBarFeed(MediaBarSettings Settings, bool TrailersEnabled, MediaBarItem[] Items, string TrailerSource = "auto", bool TrailerAutoplay = true, int TrailerDelay = 2, bool TrailerSound = false);
 public sealed partial class NotificationService
@@ -60,11 +60,27 @@ public sealed partial class NotificationService
             _featuredCache[userId] = (DateTime.UtcNow.AddHours(1), settings.ItemCount, candidates.Select(item => item.Id).ToArray());
             foreach (var expired in _featuredCache.Where(pair => pair.Value.Expires < DateTime.UtcNow).Select(pair => pair.Key).ToArray()) _featuredCache.Remove(expired);
         }
+        var seriesIds = candidates.OfType<Series>().Select(series => series.Id).ToHashSet();
+        var seasons = new Dictionary<Guid, int>();
+        if (seriesIds.Count > 0) {
+            seasons = _library.GetItemList(new InternalItemsQuery(user) { Recursive = true, AncestorIds = seriesIds.ToArray(),
+                    IncludeItemTypes = [BaseItemKind.Episode], IsVirtualItem = false, IsMissing = false, ParentIndexNumberNotEquals = 0 })
+                .OfType<Episode>().Where(episode => episode.ParentIndexNumber > 0 && Playable(episode))
+                .GroupBy(episode => episode.SeriesId != Guid.Empty ? episode.SeriesId : episode.GetParents().OfType<Series>().FirstOrDefault()?.Id ?? Guid.Empty)
+                .ToDictionary(group => group.Key, group => group.Select(episode => episode.ParentIndexNumber!.Value).Distinct().Count());
+        }
         var items = candidates
             .DistinctBy(item => item.Id).Take(settings.ItemCount).Select(item => new MediaBarItem(item.Id, item.Name, item is Movie ? "Movie" : "Series", item.ProductionYear,
-                item.CommunityRating, item.OfficialRating, (item.Overview ?? string.Empty)[..Math.Min(item.Overview?.Length ?? 0, 600)], item.Genres.Take(3).ToArray(), item.HasImage(ImageType.Logo), settings.EnableTrailers && account.Preferences.MediaBarTrailers ? Trailer(item, userId, settings.TrailerSource) : null)).ToArray();
+                item.CommunityRating, item.OfficialRating, (item.Overview ?? string.Empty)[..Math.Min(item.Overview?.Length ?? 0, 600)], item.Genres.Take(3).ToArray(), item.HasImage(ImageType.Logo), settings.EnableTrailers && account.Preferences.MediaBarTrailers ? Trailer(item, userId, settings.TrailerSource) : null, ImageTag(item, ImageType.Logo), ImageTag(item, ImageType.Backdrop), item is Series ? seasons.GetValueOrDefault(item.Id) : null)).ToArray();
         return new MediaBarFeed(settings, settings.EnableTrailers && account.Preferences.MediaBarTrailers, items, settings.TrailerSource, true, settings.TrailerDelay, account.Preferences.MediaBarTrailerSound);
     });
+    private string? ImageTag(BaseItem item, ImageType type)
+    {
+        var image = item.GetImageInfo(type, 0);
+        if (image is null) return null;
+        try { return _imageProcessor.GetImageCacheTag(item, image); }
+        catch (IOException) { return null; }
+    }
     private MediaBarTrailer? Trailer(BaseItem item, Guid userId, string source)
     {
         if (source != "youtube" && item is IHasTrailers local)
