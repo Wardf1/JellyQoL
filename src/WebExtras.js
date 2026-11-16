@@ -11,8 +11,8 @@
     };
     const lang = () => /^pl(?:[-_]|$)/i.test(document.documentElement.lang || navigator.language || '') ? 'pl' : 'en';
     const words = () => lang() === 'pl'
-        ? { removeResume:'Usuń z Kontynuuj oglądanie',resumeHint:'Usuwa zapisany punkt wznowienia; materiał zostaje w bibliotece.',resumeRemoved:'Usunięto z Kontynuuj oglądanie.',resumeFailed:'Nie udało się usunąć z Kontynuuj oglądanie. Spróbuj ponownie.', previous: 'Poprzednia strona', next: 'Następna strona', of: 'z', pager: 'Nawigacja stron', close: 'Zamknij komunikat', details: 'Więcej informacji', announcement: 'Komunikat', preview: 'Podgląd', previewOnly: 'Ten podgląd jest widoczny tylko dla Ciebie.' }
-        : { removeResume:'Remove from Continue Watching',resumeHint:'Clears your resume position; the item stays in the library.',resumeRemoved:'Removed from Continue Watching.',resumeFailed:'Could not remove from Continue Watching. Try again.', previous: 'Previous page', next: 'Next page', of: 'of', pager: 'Page navigation', close: 'Dismiss announcement', details: 'More information', announcement: 'Announcement', preview: 'Preview', previewOnly: 'This preview is only visible to you.' };
+        ? { markPlayed:'Oznacz jako obejrzane',markedPlayed:'Oznaczono jako obejrzane.',markFailed:'Nie udało się oznaczyć jako obejrzane. Spróbuj ponownie.',removeResume:'Usuń z Kontynuuj oglądanie',resumeHint:'Usuwa zapisany punkt wznowienia; materiał zostaje w bibliotece.',resumeRemoved:'Usunięto z Kontynuuj oglądanie.',resumeFailed:'Nie udało się usunąć z Kontynuuj oglądanie. Spróbuj ponownie.', previous: 'Poprzednia strona', next: 'Następna strona', of: 'z', pager: 'Nawigacja stron', close: 'Zamknij komunikat', details: 'Więcej informacji', announcement: 'Komunikat', preview: 'Podgląd', previewOnly: 'Ten podgląd jest widoczny tylko dla Ciebie.' }
+        : { markPlayed:'Mark as watched',markedPlayed:'Marked as watched.',markFailed:'Could not mark as watched. Try again.',removeResume:'Remove from Continue Watching',resumeHint:'Clears your resume position; the item stays in the library.',resumeRemoved:'Removed from Continue Watching.',resumeFailed:'Could not remove from Continue Watching. Try again.', previous: 'Previous page', next: 'Next page', of: 'of', pager: 'Page navigation', close: 'Dismiss announcement', details: 'More information', announcement: 'Announcement', preview: 'Preview', previewOnly: 'This preview is only visible to you.' };
     const route = () => (location.hash.replace(/^#!?/, '').split('?')[0] || '/').toLowerCase().replace(/\/$/, '') || '/';
     const publicPage = () => /^\/(?:login|selectserver|addserver|forgotpassword|forgotpasswordpin|disclaimer|quickconnect|wizard)(?:\b|\/)/.test(route());
     const currentIdentity = () => {
@@ -83,7 +83,7 @@
         let node=document.getElementById('jqol-resume-status');if(!node){node=document.createElement('div');node.id='jqol-resume-status';node.setAttribute('role','status');node.style.cssText='position:fixed;bottom:2em;left:50%;transform:translateX(-50%);z-index:100000;background:#202020;color:white;padding:1em 1.4em;border-radius:.5em;max-width:min(34em,80vw);text-align:center';document.body.append(node);}
         node.textContent=message;node.style.border=error?'1px solid #ff8080':'';clearTimeout(resumeToastTimer);resumeToastTimer=setTimeout(()=>node.remove(),5000);
     }
-    function clearResumeMenu(){resumeMenu=null;document.querySelectorAll('[data-jqol-remove-resume]').forEach(node=>node.remove());}
+    function clearResumeMenu(){resumeMenu=null;document.querySelectorAll('[data-jqol-remove-resume],[data-jqol-mark-played]').forEach(node=>node.remove());document.querySelectorAll('[data-jqol-title-menu]').forEach(node=>node.removeAttribute('data-jqol-title-menu'));}
     function removeResumeCards(id){
         // Native home cards are HTML owned by emby-itemscontainer. RES also appears in other rows.
         for(const card of document.querySelectorAll('.card[data-prefix="RES"]')){
@@ -95,6 +95,25 @@
             card.remove();
             if(!container.querySelector('.card'))section.classList.add('hide');
         }
+    }
+    async function refreshNativeUserQueries(ctx){
+        // Jellyfin 12.1 persists its TanStack cache across reloads. Invalidate the native
+        // cache as well as saving server data, without touching another account's queries.
+        let client;
+        const chunks=window.webpackChunk;
+        if(!Array.isArray(chunks))return;
+        chunks.push([['jellyqol-cache-'+Date.now()+'-'+Math.random().toString(36).slice(2)],{},runtime=>{
+            const entry=Object.entries(runtime.m||{}).find(([,factory])=>factory.toString().includes('jellyfin-query-cache'));
+            if(entry)client=runtime(entry[0]).q;
+        }]);
+        if(!client?.invalidateQueries)return;
+        try{
+            await client.invalidateQueries({queryKey:['User',ctx.user],refetchType:'all'});
+            if(disposed||ctx.key!==currentIdentity()||ctx.route!==location.hash)return;
+            for(const container of document.querySelectorAll('[is="emby-itemscontainer"]')){
+                if(container.querySelector('[data-id="'+ctx.id+'"]')&&typeof container.refreshItems==='function')Promise.resolve(container.refreshItems()).catch(()=>{});
+            }
+        }catch(_){/* The server save remains valid while a list refresh is offline. */}
     }
     function resumeClick(event){
         if(disposed||!settings||!currentIdentity()||!(event.target instanceof Element))return;
@@ -111,21 +130,29 @@
         const ctx=resumeMenu;if(!ctx)return;
         if(ctx.key!==currentIdentity()||ctx.route!==location.hash||(ctx.menu&&!ctx.menu.isConnected)){clearResumeMenu();return;}
         if(!ctx.menu&&Date.now()>ctx.deadline){clearResumeMenu();return;}
-        if(!ctx.loaded||!ctx.item||itemId(ctx.item.Id)!==ctx.id||!['Movie','Episode','Video'].includes(ctx.item.Type)||!(ctx.item.UserData?.PlaybackPositionTicks>0))return;
         const menu=ctx.menu||Array.from(document.querySelectorAll('.actionSheet')).find(node=>!ctx.existing.has(node));if(!menu)return;
-        const container=menu.querySelector('.actionSheetScroller');if(!container||menu.querySelector('[data-jqol-remove-resume]'))return;ctx.menu=menu;
-        const button=document.createElement('button');button.type='button';button.className='listItem listItem-button actionSheetMenuItem';button.setAttribute('is','emby-button');button.dataset.id='jellyqol-remove-resume';button.setAttribute('data-jqol-remove-resume','');button.title=words().resumeHint;
-        const icon=document.createElement('span');icon.className='material-icons actionsheetMenuItemIcon listItemIcon listItemIcon-transparent';icon.textContent='playlist_remove';icon.setAttribute('aria-hidden','true');
-        const body=document.createElement('div');body.className='listItemBody actionsheetListItemBody';const label=document.createElement('div');label.className='listItemBodyText actionSheetItemText';label.textContent=words().removeResume;body.append(label);button.append(icon,body);
-        button.addEventListener('click',async()=>{
-            if(disposed||ctx.busy||ctx.key!==currentIdentity()||ctx.route!==location.hash)return;ctx.busy=true;button.disabled=true;
-            try{await window.ApiClient.ajax({type:'POST',url:window.ApiClient.getUrl('UserItems/'+ctx.id+'/UserData',{userId:ctx.user}),contentType:'application/json',dataType:'json',data:JSON.stringify({PlaybackPositionTicks:0})});
-                if(!disposed&&ctx.key===currentIdentity()&&ctx.route===location.hash){removeResumeCards(ctx.id);resumeToast(words().resumeRemoved);}
-            }catch(_){if(!disposed&&ctx.key===currentIdentity()&&ctx.route===location.hash)resumeToast(words().resumeFailed,true);}
-            finally{ctx.busy=false;button.disabled=false;}
-        });
-        container.append(button);
+        const container=menu.querySelector('.actionSheetScroller');if(!container)return;ctx.menu=menu;menu.setAttribute('data-jqol-title-menu','');
+        if(!ctx.loaded||!ctx.item||itemId(ctx.item.Id)!==ctx.id||!['Movie','Episode','Video'].includes(ctx.item.Type)||menu.querySelector('[data-jqol-remove-resume],[data-jqol-mark-played]'))return;
+        let previous=Array.from(container.querySelectorAll('[data-id]')).filter(node=>['resume','play','playall','playallfromhere'].includes(node.dataset.id)).at(-1);
+        const addAction=(kind,text,iconName,run,success,failure)=>{
+            const button=document.createElement('button');button.type='button';button.className='listItem listItem-button actionSheetMenuItem';button.setAttribute('is','emby-button');button.dataset.id='jellyqol-'+kind;button.setAttribute('data-jqol-'+kind,'');
+            const icon=document.createElement('span');icon.className='material-icons actionsheetMenuItemIcon listItemIcon listItemIcon-transparent';icon.textContent=iconName;icon.setAttribute('aria-hidden','true');
+            const body=document.createElement('div');body.className='listItemBody actionsheetListItemBody';const label=document.createElement('div');label.className='listItemBodyText actionSheetItemText';label.textContent=text;body.append(label);button.append(icon,body);
+            button.addEventListener('click',async()=>{
+                if(disposed||ctx.busy||ctx.key!==currentIdentity()||ctx.route!==location.hash)return;ctx.busy=true;button.disabled=true;
+                try{await run();if(!disposed&&ctx.key===currentIdentity()&&ctx.route===location.hash){await refreshNativeUserQueries(ctx);if(!disposed&&ctx.key===currentIdentity()&&ctx.route===location.hash){removeResumeCards(ctx.id);resumeToast(success);}}}
+                catch(_){if(!disposed&&ctx.key===currentIdentity()&&ctx.route===location.hash)resumeToast(failure,true);}
+                finally{ctx.busy=false;button.disabled=false;}
+            });
+            if(previous)previous.after(button);else container.prepend(button);previous=button;return button;
+        };
+        if(ctx.item.UserData?.PlaybackPositionTicks>0){
+            const button=addAction('remove-resume',words().removeResume,'playlist_remove',()=>window.ApiClient.ajax({type:'POST',url:window.ApiClient.getUrl('UserItems/'+ctx.id+'/UserData',{userId:ctx.user}),contentType:'application/json',dataType:'json',data:JSON.stringify({PlaybackPositionTicks:0})}),words().resumeRemoved,words().resumeFailed);
+            button.title=words().resumeHint;
+        }
+        if(!ctx.item.UserData?.Played)addAction('mark-played',words().markPlayed,'check_circle',()=>window.ApiClient.markPlayed(ctx.user,ctx.id),words().markedPlayed,words().markFailed);
     }
+
     function toastIcons() {
         if (!settings?.EnableToastIcons) {
             document.querySelectorAll('svg[data-jqol-toast-token]').forEach(node => node.replaceWith(document.createTextNode(node.getAttribute('data-jqol-toast-token')))); return;
@@ -330,6 +357,7 @@
     const observer=new MutationObserver(schedule);
     function start(){
         const style=document.createElement('style');style.id='jelly-qol-extras-style';style.textContent=`
+.actionSheet[data-jqol-title-menu]{max-height:calc(100dvh - 2rem);display:flex;flex-direction:column}.actionSheet[data-jqol-title-menu] .actionSheetScroller{max-height:min(70vh,calc(100dvh - 7rem));min-height:0;overflow-y:auto!important;overscroll-behavior-y:contain;scrollbar-width:thin}
 .jqol-service-link{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex:0 0 44px;color:inherit;border-radius:50%;text-decoration:none}.jqol-service-link:hover{background:#ffffff18}.jqol-service-link svg{width:24px;height:24px}.jqol-service-link:focus-visible{outline:2px solid currentColor;outline-offset:-3px}
 .jqol-toast-icon{width:20px;height:20px;vertical-align:middle;color:var(--wardf-focus,#00a4dc);margin-inline:4px;flex-shrink:0}
 [data-jqol-search-list]{display:flex!important;flex-direction:column!important}[data-jqol-search-rank="0"]{order:0}[data-jqol-search-rank="1"]{order:1}[data-jqol-search-rank="2"]{order:2}[data-jqol-search-rank="3"]{order:3}[data-jqol-search-empty]{display:none!important}

@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.9.7.0",
+        "timestamp": "2026-11-16T19:02:06Z",
+        "changelog": "Moved Remove from Continue Watching directly below playback actions and added Mark as watched underneath it. Card context menus now scroll on short screens. Fixed removed titles returning after reload by invalidating Jellyfin native persisted user queries and refreshing native item containers after a successful save. Verified persistence across full reloads and account isolation.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "7d377bf1abb0b24b72ee233cda66484a",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.9.7.0/JellyQoL_1.9.7.0.zip"
+      },
+      {
         "version": "1.9.6.0",
         "timestamp": "2026-11-16T18:29:12Z",
         "changelog": "Added Remove from Continue Watching to the native card menu and right-click menu for partially watched movies and episodes. Clears only the signed-in account resume position, preserving library files, watched status, favorites, play count and other accounts. Polish and English home rows update immediately; failed requests leave the list unchanged.",
