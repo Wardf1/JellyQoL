@@ -3,7 +3,7 @@
     if (window.JellyQoLExtras) return;
     let settings = null, identity = '', loading = false, generation = 0, timer = null, disposed = false;
     const intervals = [];
-    let pager = null, bannerKey = '', bannerTimer = null, preview = null;
+    let pager = null, bannerKey = '', bannerTimer = null, preview = null, resumeMenu = null, resumeToastTimer = null;
     const memory = new Map(), searchNodes = new Set();
     const icons = {
         '{{icon:jellyfish}}': 'M4 4h16l-6 7v7l-4 2v-9z', '{{icon.audio}}': 'M3 9h4l5-4v14l-5-4H3zM16 8q6 4 0 8',
@@ -11,8 +11,8 @@
     };
     const lang = () => /^pl(?:[-_]|$)/i.test(document.documentElement.lang || navigator.language || '') ? 'pl' : 'en';
     const words = () => lang() === 'pl'
-        ? { previous: 'Poprzednia strona', next: 'Następna strona', of: 'z', pager: 'Nawigacja stron', close: 'Zamknij komunikat', details: 'Więcej informacji', announcement: 'Komunikat', preview: 'Podgląd', previewOnly: 'Ten podgląd jest widoczny tylko dla Ciebie.' }
-        : { previous: 'Previous page', next: 'Next page', of: 'of', pager: 'Page navigation', close: 'Dismiss announcement', details: 'More information', announcement: 'Announcement', preview: 'Preview', previewOnly: 'This preview is only visible to you.' };
+        ? { removeResume:'Usuń z Kontynuuj oglądanie',resumeHint:'Usuwa zapisany punkt wznowienia; materiał zostaje w bibliotece.',resumeRemoved:'Usunięto z Kontynuuj oglądanie.',resumeFailed:'Nie udało się usunąć z Kontynuuj oglądanie. Spróbuj ponownie.', previous: 'Poprzednia strona', next: 'Następna strona', of: 'z', pager: 'Nawigacja stron', close: 'Zamknij komunikat', details: 'Więcej informacji', announcement: 'Komunikat', preview: 'Podgląd', previewOnly: 'Ten podgląd jest widoczny tylko dla Ciebie.' }
+        : { removeResume:'Remove from Continue Watching',resumeHint:'Clears your resume position; the item stays in the library.',resumeRemoved:'Removed from Continue Watching.',resumeFailed:'Could not remove from Continue Watching. Try again.', previous: 'Previous page', next: 'Next page', of: 'of', pager: 'Page navigation', close: 'Dismiss announcement', details: 'More information', announcement: 'Announcement', preview: 'Preview', previewOnly: 'This preview is only visible to you.' };
     const route = () => (location.hash.replace(/^#!?/, '').split('?')[0] || '/').toLowerCase().replace(/\/$/, '') || '/';
     const publicPage = () => /^\/(?:login|selectserver|addserver|forgotpassword|forgotpasswordpin|disclaimer|quickconnect|wizard)(?:\b|\/)/.test(route());
     const currentIdentity = () => {
@@ -77,6 +77,54 @@
         if (event.shiftKey) { event.stopImmediatePropagation(); return; }
         const menu = nativeMenu(card); if (!menu || menu.disabled || menu.getAttribute('aria-disabled') === 'true') return;
         event.preventDefault(); event.stopImmediatePropagation(); if (event.type === 'contextmenu') menu.click();
+    }
+    const itemId=value=>String(value||'').replace(/-/g,'').toLowerCase();
+    function resumeToast(message,error=false){
+        let node=document.getElementById('jqol-resume-status');if(!node){node=document.createElement('div');node.id='jqol-resume-status';node.setAttribute('role','status');node.style.cssText='position:fixed;bottom:2em;left:50%;transform:translateX(-50%);z-index:100000;background:#202020;color:white;padding:1em 1.4em;border-radius:.5em;max-width:min(34em,80vw);text-align:center';document.body.append(node);}
+        node.textContent=message;node.style.border=error?'1px solid #ff8080':'';clearTimeout(resumeToastTimer);resumeToastTimer=setTimeout(()=>node.remove(),5000);
+    }
+    function clearResumeMenu(){resumeMenu=null;document.querySelectorAll('[data-jqol-remove-resume]').forEach(node=>node.remove());}
+    function removeResumeCards(id){
+        // Native home cards are HTML owned by emby-itemscontainer. RES also appears in other rows.
+        for(const card of document.querySelectorAll('.card[data-prefix="RES"]')){
+            if(itemId(card.dataset.id)!==id)continue;
+            const api=window.ApiClient;if(card.dataset.serverid&&api.serverId&&card.dataset.serverid!==api.serverId())continue;
+            const container=card.closest('[is="emby-itemscontainer"]');if(!container)continue;
+            const section=container.closest('.verticalSection'),heading=section?.querySelector(':scope > h2.sectionTitle');
+            if(!/^(continue watching|kontynuuj odtwarzanie|kontynuuj oglądanie)$/i.test(heading?.textContent.trim()||''))continue;
+            card.remove();
+            if(!container.querySelector('.card'))section.classList.add('hide');
+        }
+    }
+    function resumeClick(event){
+        if(disposed||!settings||!currentIdentity()||!(event.target instanceof Element))return;
+        const card=cardAt(event.target),button=event.target.closest('button,.itemAction');if(!card||!button||nativeMenu(card)!==button)return;
+        const id=itemId(card.dataset.id);if(!/^[a-f0-9]{32}$/.test(id))return;
+        const api=window.ApiClient;if(card.dataset.serverid&&api.serverId&&card.dataset.serverid!==api.serverId())return;
+        clearResumeMenu();const ctx={id,key:currentIdentity(),user:api.getCurrentUserId(),route:location.hash,existing:new Set(document.querySelectorAll('.actionSheet')),deadline:Date.now()+8000,loaded:false,item:null,menu:null,busy:false};
+        resumeMenu=ctx;
+        Promise.resolve().then(()=>{if(disposed||resumeMenu!==ctx||ctx.key!==currentIdentity()||ctx.route!==location.hash)return null;return api.ajax({type:'GET',url:api.getUrl('Items/'+id,{userId:ctx.user}),dataType:'json'});})
+            .then(item=>{if(resumeMenu!==ctx||ctx.key!==currentIdentity()||ctx.route!==location.hash)return;ctx.item=item;ctx.loaded=true;schedule();})
+            .catch(()=>{if(resumeMenu===ctx){ctx.loaded=true;ctx.item=null;}});
+    }
+    function extendResumeMenu(){
+        const ctx=resumeMenu;if(!ctx)return;
+        if(ctx.key!==currentIdentity()||ctx.route!==location.hash||(ctx.menu&&!ctx.menu.isConnected)){clearResumeMenu();return;}
+        if(!ctx.menu&&Date.now()>ctx.deadline){clearResumeMenu();return;}
+        if(!ctx.loaded||!ctx.item||itemId(ctx.item.Id)!==ctx.id||!['Movie','Episode','Video'].includes(ctx.item.Type)||!(ctx.item.UserData?.PlaybackPositionTicks>0))return;
+        const menu=ctx.menu||Array.from(document.querySelectorAll('.actionSheet')).find(node=>!ctx.existing.has(node));if(!menu)return;
+        const container=menu.querySelector('.actionSheetScroller');if(!container||menu.querySelector('[data-jqol-remove-resume]'))return;ctx.menu=menu;
+        const button=document.createElement('button');button.type='button';button.className='listItem listItem-button actionSheetMenuItem';button.setAttribute('is','emby-button');button.dataset.id='jellyqol-remove-resume';button.setAttribute('data-jqol-remove-resume','');button.title=words().resumeHint;
+        const icon=document.createElement('span');icon.className='material-icons actionsheetMenuItemIcon listItemIcon listItemIcon-transparent';icon.textContent='playlist_remove';icon.setAttribute('aria-hidden','true');
+        const body=document.createElement('div');body.className='listItemBody actionsheetListItemBody';const label=document.createElement('div');label.className='listItemBodyText actionSheetItemText';label.textContent=words().removeResume;body.append(label);button.append(icon,body);
+        button.addEventListener('click',async()=>{
+            if(disposed||ctx.busy||ctx.key!==currentIdentity()||ctx.route!==location.hash)return;ctx.busy=true;button.disabled=true;
+            try{await window.ApiClient.ajax({type:'POST',url:window.ApiClient.getUrl('UserItems/'+ctx.id+'/UserData',{userId:ctx.user}),contentType:'application/json',dataType:'json',data:JSON.stringify({PlaybackPositionTicks:0})});
+                if(!disposed&&ctx.key===currentIdentity()&&ctx.route===location.hash){removeResumeCards(ctx.id);resumeToast(words().resumeRemoved);}
+            }catch(_){if(!disposed&&ctx.key===currentIdentity()&&ctx.route===location.hash)resumeToast(words().resumeFailed,true);}
+            finally{ctx.busy=false;button.disabled=false;}
+        });
+        container.append(button);
     }
     function toastIcons() {
         if (!settings?.EnableToastIcons) {
@@ -264,13 +312,13 @@
         if(banner.style.top!==(bottom?'auto':top+'px'))banner.style.top=bottom?'auto':top+'px';
         if(banner.style.bottom!==(bottom?'16px':'auto'))banner.style.bottom=bottom?'16px':'auto';
     }
-    function cleanup() { document.querySelectorAll('.jqol-service-link').forEach(node=>node.remove());clearSearch();pagerCleanup();removeBanner();removePreview(); }
+    function cleanup() { clearResumeMenu();clearTimeout(resumeToastTimer);document.getElementById('jqol-resume-status')?.remove();document.querySelectorAll('.jqol-service-link').forEach(node=>node.remove());clearSearch();pagerCleanup();removeBanner();removePreview(); }
     function update() {
         const key=currentIdentity();
         if(key!==identity){identity=key;generation++;settings=null;loading=false;cleanup();if(key)loadSettings();}
         if(!key){cleanup();return;}
         if(!settings){if(preview)updatePreview();else cleanup();return;}
-        links();toastIcons();search();pagination();announcement();updatePreview();
+        links();toastIcons();search();pagination();announcement();updatePreview();extendResumeMenu();
     }
     function schedule() {
         if(disposed || typeof document === 'undefined' || !document.body)return;
@@ -295,10 +343,11 @@
         document.head.appendChild(style);observer.observe(document.body,options);schedule();
         intervals.push(setInterval(()=>{if(!document.hidden)schedule();},1000),setInterval(()=>{if(!document.hidden)loadSettings();},30000));
     }
+    document.addEventListener('click',resumeClick,true);
     for(const type of ['pointerdown','mousedown','pointerup','mouseup','contextmenu'])document.addEventListener(type,context,true);
     for(const type of ['hashchange','popstate','resize','storage','pageshow'])window.addEventListener(type,schedule);
     for(const type of ['viewshow','visibilitychange'])document.addEventListener(type,schedule,true);
     window.addEventListener('jellyqol:features',event=>{if(currentIdentity()&&event.detail){generation++;settings={...settings,...event.detail};schedule();}});
-    window.JellyQoLExtras={refresh:schedule,previewAnnouncement,dispose:()=>{disposed=true;generation++;observer.disconnect();clearTimeout(timer);intervals.forEach(clearInterval);cleanup();}};
+    window.JellyQoLExtras={refresh:schedule,previewAnnouncement,dispose:()=>{disposed=true;generation++;document.removeEventListener('click',resumeClick,true);observer.disconnect();clearTimeout(timer);intervals.forEach(clearInterval);cleanup();}};
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

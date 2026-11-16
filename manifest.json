@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.9.6.0",
+        "timestamp": "2026-11-16T18:29:12Z",
+        "changelog": "Added Remove from Continue Watching to the native card menu and right-click menu for partially watched movies and episodes. Clears only the signed-in account resume position, preserving library files, watched status, favorites, play count and other accounts. Polish and English home rows update immediately; failed requests leave the list unchanged.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "50ff08a9decf925e36040e78e8d55ea6",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.9.6.0/JellyQoL_1.9.6.0.zip"
+      },
+      {
         "version": "1.9.5.0",
         "timestamp": "2026-11-15T11:39:05Z",
         "changelog": "Full Media Bar slide-list refresh includes native Jellyfin version tags for logos and backdrops, all rendered metadata, inactive slide labels/preloads and trailer metadata. Stable image versions are not reloaded, and stale image callbacks cannot overwrite current content. Added per-user available season counts for series, excluding season 0, empty seasons and virtual/missing episodes.",
