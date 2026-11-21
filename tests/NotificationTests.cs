@@ -247,6 +247,22 @@ public sealed class NotificationTests
         var updated=Assert.Single(f.Service.MediaBar(user.Id).Items);Assert.Equal(first.Id,updated.Id);Assert.Equal("Updated title",updated.Name);Assert.Equal("Updated overview",updated.Overview);Assert.Equal(2027,updated.Year);Assert.Equal(9.1f,updated.CommunityRating);Assert.Equal("16",updated.OfficialRating);Assert.Equal("Updated genre",Assert.Single(updated.Genres));Assert.Equal("logo-v2",updated.LogoImageTag);Assert.Equal("backdrop-v2",updated.BackdropImageTag);Assert.Equal("M7lc1UVf-VE",updated.Trailer?.YouTubeId);
         f.Library.Verify(x=>x.GetItemList(It.Is<InternalItemsQuery>(q=>q.IncludeItemTypes.Contains(Jellyfin.Data.Enums.BaseItemKind.Movie)&&q.IncludeItemTypes.Contains(Jellyfin.Data.Enums.BaseItemKind.Series))),Times.Once);
     }
+    [Fact] public void RandomMediaBarRotatesAfterTenMinutesWithoutExtendingExpiryOnMetadataRefresh()
+    {
+        using var f=new Fixture();var user=f.User();var first=f.Item<Movie>();var second=f.Item<Movie>();
+        foreach(var movie in new[]{first,second})movie.SetImage(new(){Type=ImageType.Backdrop,Path="/media/backdrop.jpg"},0);
+        f.Plugin.Configuration.QoL.MediaBar=new(){Enabled=true,Source="random",ItemCount=1};
+        var before=DateTime.UtcNow;var selected=Assert.Single(f.Service.MediaBar(user.Id).Items);
+        var field=typeof(NotificationService).GetField("_featuredCache",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!;
+        var cache=(Dictionary<Guid,(DateTime Expires,int Count,Guid[] Ids)>)field.GetValue(f.Service)!;
+        Assert.InRange(cache[user.Id].Expires,before.AddMinutes(10),DateTime.UtcNow.AddMinutes(10));
+        var fixedExpiry=DateTime.UtcNow.AddMinutes(5);cache[user.Id]=(fixedExpiry,1,[selected.Id]);
+        for(var n=0;n<3;n++){Assert.Equal(selected.Id,Assert.Single(f.Service.MediaBar(user.Id).Items).Id);Assert.Equal(fixedExpiry,cache[user.Id].Expires);}
+        cache[user.Id]=(DateTime.UtcNow.AddSeconds(-1),1,[selected.Id]);
+        var renewed=Assert.Single(f.Service.MediaBar(user.Id).Items);Assert.NotEqual(selected.Id,renewed.Id);
+        Assert.InRange(cache[user.Id].Expires,DateTime.UtcNow.AddMinutes(10).AddSeconds(-2),DateTime.UtcNow.AddMinutes(10));
+        f.Denied.Add(renewed.Id);var deadline=cache[user.Id].Expires;Assert.DoesNotContain(f.Service.MediaBar(user.Id).Items,item=>item.Id==renewed.Id);Assert.Equal(deadline,cache[user.Id].Expires);
+    }
     [Fact] public void MediaBarCountsOnlyAccessibleNonSpecialSeasonsWithPlayableEpisodesAndRefreshesTheCount()
     {
         using var f=new Fixture();var user=f.User();var series=f.Item<Series>();f.Service.Preferences(user.Id,new(){MediaBarTrailers=false});series.SetImage(new(){Type=ImageType.Backdrop,Path="/media/backdrop.jpg"},0);

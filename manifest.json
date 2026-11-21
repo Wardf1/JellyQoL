@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.9.8.0",
+        "timestamp": "2026-11-21T19:59:47Z",
+        "changelog": "Random Media Bar selections now refresh every 10 minutes per account. Fixed the sliding expiry that kept postponing a reshuffle on each metadata poll. New selections prioritize available titles outside the previous set; metadata/artwork still refresh every 30 seconds and access is rechecked on every request.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "7205b023bb7d679d5c4f742fd4e5f1af",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.9.8.0/JellyQoL_1.9.8.0.zip"
+      },
+      {
         "version": "1.9.7.0",
         "timestamp": "2026-11-16T19:02:06Z",
         "changelog": "Moved Remove from Continue Watching directly below playback actions and added Mark as watched underneath it. Card context menus now scroll on short screens. Fixed removed titles returning after reload by invalidating Jellyfin native persisted user queries and refreshing native item containers after a successful save. Verified persistence across full reloads and account isolation.",

@@ -52,13 +52,19 @@ public sealed partial class NotificationService
             IsVirtualItem = false, ImageTypes = [ImageType.Backdrop], Limit = 200,
             OrderBy = [(settings.Source == "recent" ? ItemSortBy.DateCreated : ItemSortBy.Random, SortOrder.Descending)] };
         var valid = new Func<BaseItem, bool>(item => item is Movie or Series && !item.IsVirtualItem && item.HasImage(ImageType.Backdrop) && Visible(item, user));
-        var candidates = settings.Source == "random" && _featuredCache.TryGetValue(userId, out var cached) && cached.Expires > DateTime.UtcNow && cached.Count == settings.ItemCount
+        var now = DateTime.UtcNow;
+        var reuseSelection = _featuredCache.TryGetValue(userId, out var cached) && cached.Expires > now && cached.Count == settings.ItemCount && settings.Source == "random";
+        var candidates = reuseSelection
             ? cached.Ids.Select(id => _library.GetItemById(id)).OfType<BaseItem>().Where(valid).ToList() : [];
         if (settings.Source != "random" || candidates.Count < settings.ItemCount) candidates.AddRange(_library.GetItemList(query).Where(valid));
+        if (settings.Source == "random" && !reuseSelection && cached.Ids is not null) {
+            var previous = cached.Ids.ToHashSet();
+            candidates = candidates.OrderBy(item => previous.Contains(item.Id)).ToList();
+        }
         candidates = candidates.DistinctBy(item => item.Id).Take(settings.ItemCount).ToList();
         if (settings.Source == "random") {
-            _featuredCache[userId] = (DateTime.UtcNow.AddHours(1), settings.ItemCount, candidates.Select(item => item.Id).ToArray());
-            foreach (var expired in _featuredCache.Where(pair => pair.Value.Expires < DateTime.UtcNow).Select(pair => pair.Key).ToArray()) _featuredCache.Remove(expired);
+            _featuredCache[userId] = (reuseSelection ? cached.Expires : now.AddMinutes(10), settings.ItemCount, candidates.Select(item => item.Id).ToArray());
+            foreach (var expired in _featuredCache.Where(pair => pair.Value.Expires < now).Select(pair => pair.Key).ToArray()) _featuredCache.Remove(expired);
         }
         var seriesIds = candidates.OfType<Series>().Select(series => series.Id).ToHashSet();
         var seasons = new Dictionary<Guid, int>();
