@@ -39,6 +39,8 @@ public sealed class NotificationRecord
     public bool Seerr { get; set; }
     public bool Library { get; set; }
     public bool NewSeries { get; set; }
+    public Guid? MediaSnapshotId { get; set; }
+    public NotificationChanges? Changes { get; set; }
     public List<Guid> RequestedBy { get; set; } = [];
 }
 public sealed class NotificationAccount
@@ -76,8 +78,27 @@ public sealed class NotificationData
     public string LastWebhookStatus { get; set; } = "none";
     public HashSet<Guid> KnownSeries { get; set; } = [];
     public Dictionary<Guid, DateTime> NewSeriesUntil { get; set; } = [];
+    public bool MediaBaselineInitialized { get; set; }
+    public Dictionary<Guid, MediaSnapshot> MediaSnapshots { get; set; } = [];
+    public Dictionary<string, Guid> MediaAliases { get; set; } = [];
 }
-public sealed record NotificationEntry(Guid[] Ids, Guid ItemId, Guid ImageItemId, string Name, string Type, int Count, DateTime Created, bool Seerr, bool Library, bool Shown, bool Read);
+public sealed class NotificationChanges
+{
+    public string[] AudioLanguages { get; set; } = [];
+    public string[] SubtitleLanguages { get; set; } = [];
+    public string? Quality { get; set; }
+}
+public sealed class MediaSnapshot
+{
+    public Guid ItemId { get; set; }
+    public string? LogicalKey { get; set; }
+    public bool HasStreams { get; set; }
+    public int Quality { get; set; }
+    public string[] AudioLanguages { get; set; } = [];
+    public string[] SubtitleLanguages { get; set; } = [];
+    public Guid? LastRecordId { get; set; }
+}
+public sealed record NotificationEntry(Guid[] Ids, Guid ItemId, Guid ImageItemId, string Name, string Type, int Count, DateTime Created, bool Seerr, bool Library, bool Shown, bool Read, NotificationChanges? Changes = null);
 public sealed record NotificationFeed(NotificationPreferences Preferences, bool Available, bool OwnRequestsLinked, int Unread, NotificationEntry[] Items);
 public sealed class NotificationAction
 {

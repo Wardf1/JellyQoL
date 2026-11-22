@@ -18,15 +18,16 @@ public sealed partial class NotificationService : BackgroundService
 {
     private readonly ILibraryManager _library;
     private readonly IImageProcessor _imageProcessor;
+    private readonly IMediaSourceManager _mediaSources;
     private readonly IUserManager _users;
     private readonly ILogger<NotificationService> _logger;
     private readonly string _path;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ConcurrentDictionary<Guid, DateTime> _added = new();
     private NotificationData _data;
-    public NotificationService(ILibraryManager library, IUserManager users, IApplicationPaths paths, ILogger<NotificationService> logger, IImageProcessor imageProcessor)
+    public NotificationService(ILibraryManager library, IUserManager users, IApplicationPaths paths, ILogger<NotificationService> logger, IImageProcessor imageProcessor, IMediaSourceManager mediaSources)
     {
-        _library = library; _users = users; _logger = logger; _imageProcessor = imageProcessor;
+        _library = library; _users = users; _logger = logger; _imageProcessor = imageProcessor; _mediaSources = mediaSources;
         _path = Path.Combine(paths.PluginConfigurationsPath, "JellyQoL.notifications.json");
         // A damaged store must fail visibly rather than replaying all notifications or resetting secrets.
         _data = File.Exists(_path) ? JsonSerializer.Deserialize<NotificationData>(File.ReadAllText(_path)) ?? throw new InvalidDataException("Empty notification store.") : new();
@@ -62,6 +63,7 @@ public sealed partial class NotificationService : BackgroundService
             _data.Activated = DateTime.UtcNow; _added.Clear();
             _data.KnownSeries = _library.GetItemList(new InternalItemsQuery { Recursive = true, IncludeItemTypes = [BaseItemKind.Series] }).Select(x => x.Id).ToHashSet();
             _data.NewSeriesUntil.Clear();
+            SeedMediaBaseline(true);
             foreach (var user in _users.GetUsers()) Account(user.Id);
         }
         _data.Options = value; Save(); return true;
@@ -89,16 +91,13 @@ public sealed partial class NotificationService : BackgroundService
     }
     private void OnAdded(object? sender, ItemChangeEventArgs args) { if (_data.Options.Enabled) QueueItem(args.Item); }
     private static bool Playable(BaseItem? item) => item is Movie or Episode && !item.IsVirtualItem && !string.IsNullOrWhiteSpace(item.Path);
-    private void Record(BaseItem item, bool seerr, bool library, Guid? requester = null)
+    private bool Record(BaseItem item, bool seerr, bool library, Guid? requester = null)
     {
-        var record = _data.Records.FirstOrDefault(x => x.ItemId == item.Id);
-        if (record is null) {
-            var series = item is Episode ? item.GetParents().OfType<Series>().FirstOrDefault() : null;
-            if (series is not null && _data.KnownSeries.Add(series.Id)) _data.NewSeriesUntil[series.Id] = DateTime.UtcNow.AddMinutes(10);
-            record = new() { ItemId = item.Id, NewSeries = series is not null && _data.NewSeriesUntil.TryGetValue(series.Id, out var until) && until > DateTime.UtcNow }; _data.Records.Add(record);
-        }
+        var record = ObserveMedia(item);
+        if (record is null) return false;
         record.Seerr |= seerr; record.Library |= library;
         if (requester.HasValue && !record.RequestedBy.Contains(requester.Value)) record.RequestedBy.Add(requester.Value);
+        return true;
     }
     public void ProcessPending() => Locked(() => {
         if (!_data.Options.Enabled) return false;
@@ -106,7 +105,7 @@ public sealed partial class NotificationService : BackgroundService
             if (DateTime.UtcNow - entry.Value < TimeSpan.FromSeconds(30) || _library.IsScanRunning) continue;
             if (_library.GetItemById(entry.Key) is { } item && Playable(item)) {
                 _data.AvailableSince.TryAdd(item.Id, DateTime.UtcNow);
-                if (_data.Options.Library) Record(item, false, true);
+                Record(item, false, _data.Options.Library);
             }
             _added.TryRemove(entry.Key, out _);
         }
@@ -117,12 +116,13 @@ public sealed partial class NotificationService : BackgroundService
             if (matches.Length == 0) { request.Status = "existing"; request.MatchedIds = resolved.Select(item => item.Id).ToArray(); _data.LastWebhookStatus = "existing"; continue; }
             var requester = request.RequestedBy;
             if (!requester.HasValue && _data.Options.AccountMappings.TryGetValue(request.RequesterId, out var mapped)) requester = mapped;
+            var recorded = new List<Guid>();
             foreach (var item in matches) {
                 _data.AvailableSince.TryAdd(item.Id, _added.TryGetValue(item.Id, out var observed) ? observed : item.DateCreated);
-                Record(item, true, false, requester);
+                if (Record(item, true, false, requester)) recorded.Add(item.Id);
             }
-            request.MatchedIds = matches.Select(x => x.Id).ToArray(); request.Status = "ready";
-            _data.LastWebhookStatus = "ready";
+            request.MatchedIds = recorded.ToArray(); request.Status = recorded.Count > 0 ? "ready" : "existing";
+            _data.LastWebhookStatus = request.Status;
         }
         Prune(); Save(); return true;
     });
@@ -200,12 +200,12 @@ public sealed partial class NotificationService : BackgroundService
         var unread = eligible.Count(x => !account.Read.Contains(x.Record.Id));
         var items = eligible.Where(x => !popup || (account.Preferences.Popups && !account.Shown.Contains(x.Record.Id) &&
             (!account.Deferred.TryGetValue(x.Record.Id, out var until) || until <= DateTime.UtcNow)))
-            .GroupBy(x => x.Item is Episode episode ? episode.SeriesId : x.Item.Id)
+            .GroupBy(x => (Title: x.Item is Episode episode ? episode.SeriesId : x.Item.Id, Change: x.Record.Changes is null ? "new" : JsonSerializer.Serialize(x.Record.Changes)))
             .Select(group => {
                 var first = group.First(); var series = first.Item is Episode ep ? ep.GetParents().OfType<Series>().FirstOrDefault() : null;
                 return new NotificationEntry(group.Select(x => x.Record.Id).ToArray(), series?.Id ?? first.Item.Id, series?.Id ?? first.Item.Id,
-                    series?.Name ?? first.Item.Name, first.Item is Movie ? "Movie" : group.Any(x => x.Record.NewSeries) ? "Series" : "Episode", group.Count(), group.Max(x => x.Record.Created),
-                    group.Any(x => x.Record.Seerr), group.Any(x => x.Record.Library), group.All(x => account.Shown.Contains(x.Record.Id)), group.All(x => account.Read.Contains(x.Record.Id)));
+                    series?.Name ?? first.Item.Name, first.Item is Movie ? "Movie" : group.Any(x => x.Record.NewSeries) ? "Series" : "Episode", group.Select(x => x.Item.Id).Distinct().Count(), group.Max(x => x.Record.Created),
+                    group.Any(x => x.Record.Seerr), group.Any(x => x.Record.Library), group.All(x => account.Shown.Contains(x.Record.Id)), group.All(x => account.Read.Contains(x.Record.Id)), first.Record.Changes);
             }).OrderByDescending(x => x.Created).Skip(Math.Clamp(offset, 0, 10000)).Take(popup ? 20 : 50).ToArray();
         if (newAccount) Save(); return new NotificationFeed(account.Preferences, _data.Options.Enabled,
             _data.Options.AccountMappings.ContainsValue(userId) || _data.Records.Any(x => x.RequestedBy.Contains(userId)), unread, items);
@@ -237,13 +237,14 @@ public sealed partial class NotificationService : BackgroundService
     });
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        RegisterAccounts(); _library.ItemAdded += OnAdded;
+        RegisterAccounts(); _library.ItemAdded += OnAdded; _library.ItemUpdated += OnAdded;
         try {
+            if (_data.Options.Enabled) InitializeMediaBaseline();
             while (!stoppingToken.IsCancellationRequested) {
                 try { ProcessPending(); } catch (Exception ex) { _logger.LogError(ex, "Jelly QoL notification processing failed"); try { WebhookError(); } catch (IOException) { } }
                 await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken).ConfigureAwait(false);
             }
         } catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
-        finally { _library.ItemAdded -= OnAdded; }
+        finally { _library.ItemAdded -= OnAdded; _library.ItemUpdated -= OnAdded; }
     }
 }

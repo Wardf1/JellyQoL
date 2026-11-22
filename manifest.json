@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.10.0.0",
+        "timestamp": "2026-11-22T13:24:22Z",
+        "changelog": "Distinguished new arrivals from replacement files using persisted media baselines and logical identity matching. New titles keep generic notifications. Later updates announce added audio/subtitle languages or higher resolution only; codec, bitrate, size, naming, unchanged replacements and downgrades stay silent. Baselines survive restart, cleared history and retention. Updates and initial arrivals group separately, with per-user access checks and Seerr/library deduplication. English and Polish messages.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "90f68cb9a36c3cff3e34cd5fbca70bf7",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.10.0.0/JellyQoL_1.10.0.0.zip"
+      },
+      {
         "version": "1.9.9.0",
         "timestamp": "2026-11-22T12:49:29Z",
         "changelog": "Fixed dark edge strips during Media Bar transitions in both directions. Kept slight directional motion and a 1.4-second crossfade, with temporary overscan covering both edges. The outgoing scene stays opaque underneath the incoming scene to prevent overlap darkening. Image readiness, rapid-navigation cancellation and reduced-motion behavior are preserved.",

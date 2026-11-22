@@ -22,8 +22,10 @@ public sealed class NotificationTests
         public readonly Mock<ILibraryManager> Library = new();
         public readonly Mock<MediaBrowser.Controller.Drawing.IImageProcessor> Images = new();
         public readonly Mock<IUserManager> Users = new();
+        public readonly Mock<IMediaSourceManager> MediaSources = new();
         public readonly Mock<IApplicationPaths> Paths = new();
         public readonly List<BaseItem> Items = [];
+        public readonly Dictionary<Guid,List<MediaStream>> Streams = [];
         public readonly List<User> Accounts = [];
         public readonly HashSet<Guid> Denied = [];
         public readonly UserPolicy Policy = new() { EnableAllFolders = true };
@@ -41,15 +43,18 @@ public sealed class NotificationTests
                 (q.User is null || !Denied.Contains(x.Id)) &&
                 (q.AncestorIds.Length == 0 || x.GetParents().Any(p => q.AncestorIds.Contains(p.Id))) &&
                 (q.HasAnyProviderId == null || q.HasAnyProviderId.Any(p => x.ProviderIds.TryGetValue(p.Key, out var v) && v == p.Value))).ToArray());
+            MediaSources.Setup(x=>x.GetMediaStreams(It.IsAny<Guid>())).Returns((Guid id)=>Streams.GetValueOrDefault(id) ?? []);
             BaseItem.LibraryManager = Library.Object;
             Users.Setup(x => x.GetUsers()).Returns(Accounts);
             Users.Setup(x => x.GetUserById(It.IsAny<Guid>())).Returns((Guid id) => Accounts.FirstOrDefault(x => x.Id == id));
             Users.Setup(x => x.GetUserDto(It.IsAny<User>(), It.IsAny<string?>())).Returns(new UserDto { Policy = Policy });
             Service = NewService();
         }
-        public NotificationService NewService() => new(Library.Object, Users.Object, Paths.Object, NullLogger<NotificationService>.Instance, Images.Object);
+        public NotificationService NewService() => new(Library.Object, Users.Object, Paths.Object, NullLogger<NotificationService>.Instance, Images.Object, MediaSources.Object);
         public User User() { var user = new User(Guid.NewGuid().ToString(), "auth", "reset"); Accounts.Add(user); return user; }
-        public T Item<T>(BaseItem? parent = null) where T : BaseItem, new() { var item = new T { Id = Guid.NewGuid(), Name = "Title", Path = "/media/title.mkv", ParentId = parent?.Id ?? Guid.Empty, DateCreated = DateTime.UtcNow };Items.Add(item);return item; }
+        public T Item<T>(BaseItem? parent = null) where T : BaseItem, new() { var item = new T { Id = Guid.NewGuid(), Name = "Title", Path = "/media/title.mkv", ParentId = parent?.Id ?? Guid.Empty, DateCreated = DateTime.UtcNow };item.Path="/media/"+item.Id.ToString("N")+".mkv";Items.Add(item);return item; }
+        public void LibraryEvent(BaseItem item) { Service.QueueItem(item);var field=typeof(NotificationService).GetField("_added",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!;var pending=(System.Collections.Concurrent.ConcurrentDictionary<Guid,DateTime>)field.GetValue(Service)!;pending[item.Id]=DateTime.UtcNow.AddSeconds(-31);Service.ProcessPending(); }
+        public void Tracks(BaseItem item,int width=1920,params string[] languages) { Streams[item.Id]=[new(){Type=MediaStreamType.Video,Width=width,Height=width==3840?2160:width==1280?720:1080,Codec="h264"},..languages.Select(language=>new MediaStream{Type=MediaStreamType.Audio,Language=language,Codec="aac"})]; }
         public void Enable() => Service.Configure(new NotificationOptions { Enabled = true });
         public void Receive(BaseItem item, User? requester = null) { Service.Receive(JsonSerializer.SerializeToElement(new { notification_type = "MEDIA_AVAILABLE", mediaType = item is Movie ? "movie" : "tv", jellyfinMediaId = item.Id, requestedBy_jellyfinUserId = requester?.Id.ToString() ?? "", request_id = "1" }));Service.ProcessPending(); }
         public void Dispose() { Service.Dispose(); if (System.IO.Directory.Exists(Directory)) System.IO.Directory.Delete(Directory, true); }
@@ -274,4 +279,58 @@ public sealed class NotificationTests
         f.Denied.Clear();Assert.Equal(4,Assert.Single(f.Service.MediaBar(user.Id).Items).SeasonCount);
         f.Library.Verify(x=>x.GetItemList(It.Is<InternalItemsQuery>(q=>q.IncludeItemTypes.Contains(Jellyfin.Data.Enums.BaseItemKind.Episode)&&q.User==user&&q.ParentIndexNumberNotEquals==0)),Times.Exactly(3));
     }
+    [Fact] public void NewTitlesAreGenericAndOnlyViewerUsefulChangesCreateUpdateNotifications()
+    {
+        using var f=new Fixture();var user=f.User();f.Enable();var movie=f.Item<Movie>();f.Tracks(movie,1920,"eng");f.LibraryEvent(movie);
+        var first=Assert.Single(f.Service.Feed(user.Id).Items);Assert.Null(first.Changes);f.Service.Act(user.Id,new(){Action="read",Ids=first.Ids});
+        f.Tracks(movie,3840,"en","pol");f.Streams[movie.Id].Add(new(){Type=MediaStreamType.Subtitle,Language="pol"});f.LibraryEvent(movie);
+        var feed=f.Service.Feed(user.Id);Assert.Equal(2,feed.Items.Length);Assert.Equal(1,feed.Unread);var update=Assert.Single(feed.Items,x=>x.Changes is not null);Assert.Equal("4K",update.Changes!.Quality);Assert.Equal(["pl"],update.Changes.AudioLanguages);Assert.Equal(["pl"],update.Changes.SubtitleLanguages);
+        f.Service.Act(user.Id,new(){Action="read",Ids=update.Ids});movie.Name="Changed metadata";movie.Path="/media/replaced-file.mkv";f.Streams[movie.Id][0].Codec="hevc";f.Streams[movie.Id][0].BitRate=12000000;f.LibraryEvent(movie);Assert.Equal(0,f.Service.Feed(user.Id).Unread);Assert.Equal(2,f.Service.Feed(user.Id).Items.Length);
+        f.Tracks(movie,1280,"en");f.LibraryEvent(movie);Assert.Equal(0,f.Service.Feed(user.Id).Unread);
+    }
+    [Fact] public void ReplacedEpisodeWithNewPathAndIdKeepsIdentityAcrossRestartAndHistoryClearing()
+    {
+        using var f=new Fixture();var user=f.User();var other=f.User();f.Enable();var series=f.Item<Series>();series.ProviderIds["Tvdb"]="123";var original=f.Item<Episode>(series);original.SeriesId=series.Id;original.ParentIndexNumber=1;original.IndexNumber=2;f.Tracks(original,1920,"en");f.LibraryEvent(original);
+        f.Service.ClearHistory(user.Id);f.Service.Dispose();f.Service=f.NewService();
+        f.Items.Remove(original);var replacement=f.Item<Episode>(series);replacement.SeriesId=series.Id;replacement.ParentIndexNumber=1;replacement.IndexNumber=2;replacement.Path="/media/new-name.mkv";f.Tracks(replacement,1920,"eng");f.LibraryEvent(replacement);Assert.Empty(f.Service.Feed(user.Id).Items);Assert.Single(f.Service.Feed(other.Id).Items);
+        f.Tracks(replacement,1920,"en","pl");f.LibraryEvent(replacement);var update=Assert.Single(f.Service.Feed(user.Id).Items);Assert.NotNull(update.Changes);Assert.Equal(["pl"],update.Changes!.AudioLanguages);Assert.False(update.Read);
+        f.Denied.Add(replacement.Id);Assert.Empty(f.Service.Feed(user.Id).Items);
+    }
+    [Fact] public void BaselineDoesNotAnnounceExistingLibraryOrUnknownTechnicalMetadataAsNew()
+    {
+        using var f=new Fixture();var user=f.User();var movie=f.Item<Movie>();movie.ProviderIds["Tmdb"]="456";f.Tracks(movie,1920,"en");f.Enable();Assert.Empty(f.Service.Feed(user.Id).Items);
+        f.LibraryEvent(movie);Assert.Empty(f.Service.Feed(user.Id).Items);
+        var replacement=f.Item<Movie>();replacement.ProviderIds["Tmdb"]="456";replacement.Path="/media/renamed.mkv";f.Items.Remove(movie);f.Tracks(replacement,1920,"en");f.LibraryEvent(replacement);Assert.Empty(f.Service.Feed(user.Id).Items);
+        f.Tracks(replacement,3840,"en");f.LibraryEvent(replacement);Assert.Equal("4K",Assert.Single(f.Service.Feed(user.Id).Items).Changes!.Quality);
+    }
+    [Fact] public void UpdateGroupingNeverClaimsFeaturesForEpisodesWithDifferentChanges()
+    {
+        using var f=new Fixture();var user=f.User();var series=f.Item<Series>();var a=f.Item<Episode>(series);a.SeriesId=series.Id;a.ParentIndexNumber=1;a.IndexNumber=1;var b=f.Item<Episode>(series);b.SeriesId=series.Id;b.ParentIndexNumber=1;b.IndexNumber=2;f.Tracks(a,1920,"en");f.Tracks(b,1920,"en");f.Enable();
+        f.Tracks(a,1920,"en","pl");f.LibraryEvent(a);f.Tracks(b,3840,"en");f.LibraryEvent(b);var updates=f.Service.Feed(user.Id).Items;Assert.Equal(2,updates.Length);Assert.All(updates,x=>Assert.Equal(1,x.Count));Assert.Single(updates,x=>x.Changes?.Quality=="4K");Assert.Single(updates,x=>x.Changes?.AudioLanguages.Contains("pl")==true);
+    }
+    [Fact] public void SeerrAndLibraryMergeTheSameUpgradeWithoutReplayingTheInitialNotification()
+    {
+        using var f=new Fixture();var user=f.User();f.Enable();var movie=f.Item<Movie>();f.Tracks(movie,1920,"en");f.LibraryEvent(movie);var original=Assert.Single(f.Service.Feed(user.Id).Items);f.Service.Act(user.Id,new(){Action="read",Ids=original.Ids});
+        f.Tracks(movie,3840,"en");f.LibraryEvent(movie);f.Receive(movie,user);var feed=f.Service.Feed(user.Id);Assert.Equal(2,feed.Items.Length);var update=Assert.Single(feed.Items,x=>x.Changes is not null);Assert.True(update.Library);Assert.True(update.Seerr);Assert.Equal(1,feed.Unread);
+        f.LibraryEvent(movie);f.Receive(movie,user);Assert.Equal(2,f.Service.Feed(user.Id).Items.Length);
+    }
+
+    [Fact] public void ComparisonSurvivesHistoryRetentionAndDoesNotGuessMissingTechnicalData()
+    {
+        using var f=new Fixture();var user=f.User();var unknown=f.Item<Movie>();f.Enable();f.Tracks(unknown,3840,"pl");f.LibraryEvent(unknown);Assert.Empty(f.Service.Feed(user.Id).Items);
+        var movie=f.Item<Movie>();f.Tracks(movie,1920,"en");f.LibraryEvent(movie);Assert.Single(f.Service.Feed(user.Id).Items);
+        var field=typeof(NotificationService).GetField("_data",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!;var data=(NotificationData)field.GetValue(f.Service)!;foreach(var record in data.Records)record.Created=DateTime.UtcNow.AddDays(-40);f.Service.ProcessPending();Assert.Empty(f.Service.Feed(user.Id).Items);
+        f.LibraryEvent(movie);Assert.Empty(f.Service.Feed(user.Id).Items);f.Tracks(movie,3840,"en");f.LibraryEvent(movie);Assert.Equal("4K",Assert.Single(f.Service.Feed(user.Id).Items).Changes!.Quality);
+    }
+    [Fact] public void ReenablingNotificationsBaselinesMaterialsAddedWhileDisabled()
+    {
+        using var f=new Fixture();var user=f.User();f.Enable();f.Service.Configure(new(){Enabled=false});var movie=f.Item<Movie>();f.Tracks(movie,1920,"en");f.Enable();f.LibraryEvent(movie);Assert.Empty(f.Service.Feed(user.Id).Items);f.Tracks(movie,1920,"en","pl");f.LibraryEvent(movie);Assert.Equal(["pl"],Assert.Single(f.Service.Feed(user.Id).Items).Changes!.AudioLanguages);
+    }
+
+    [Fact] public void ReusedFilePathWithDifferentMovieIdentityIsANewArrival()
+    {
+        using var f=new Fixture();var user=f.User();var old=f.Item<Movie>();old.ProviderIds["Tmdb"]="111";f.Tracks(old,1920,"en");f.Enable();f.Items.Remove(old);
+        var movie=f.Item<Movie>();movie.ProviderIds["Tmdb"]="222";movie.Path=old.Path;f.Tracks(movie,3840,"pl");f.LibraryEvent(movie);Assert.Null(Assert.Single(f.Service.Feed(user.Id).Items).Changes);
+    }
+
 }
