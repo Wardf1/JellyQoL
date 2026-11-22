@@ -52,7 +52,7 @@
         });preview.hidden=sound.hidden=true;controls.append(previous,count,next,pause,preview,sound,preferences);
         const dots=e('div',null,'dots');dots.setAttribute('role','group');dots.setAttribute('aria-label',words().featured);
         const announcement=e('span',null,'sr-only');announcement.setAttribute('aria-live','polite');announcement.setAttribute('aria-atomic','true');
-        artwork.append(backdrop);scene.append(artwork);section.append(scene,content,controls,dots,announcement);
+        artwork.append(backdrop);scene.append(artwork);const visuals=e('div',null,'visuals');visuals.append(scene);section.append(visuals,content,controls,dots,announcement);
         const spacing=e('style');spacing.textContent='#homeTab > #jelly-qol-media-bar + .homeSectionsContainer{padding-top:12px!important;margin-top:0!important}#homeTab > #jelly-qol-media-bar + .homeSectionsContainer > :first-child{margin-top:0!important;padding-top:0!important}';host.append(spacing);shadow.append(section);pane.prepend(host);
         nodes={section,scene,content,backdrop,logo,title,meta,overview,details,play,previous,next,pause,preview,sound,count,dots,announcement};
         section.addEventListener('pointerenter',()=>{hovered=true;});section.addEventListener('pointerleave',()=>{hovered=false;lastRotation=Date.now();});
@@ -142,13 +142,15 @@
         // Flush the starting opacity before changing it, even for cached artwork.
         incoming.getBoundingClientRect();
         // Slight overscan covers both edges throughout the directional crossfade.
-        // The old scene stays opaque underneath, so their overlap never dims to black.
+        // Isolated additive blending keeps the picture bright as the old scene fades fully out.
         const blend='opacity '+duration+'ms ease-in-out,transform '+duration+'ms ease-in-out';
         incoming.style.transition=old.scene.style.transition=content.style.transition=old.content.style.transition=blend;
         incoming.style.opacity='1';content.style.opacity='1';incoming.style.transform=content.style.transform='none';
         old.scene.style.transform='translateX('+(-transitionDirection*4)+'%) scale(1.1)';old.content.style.transform='translateX('+(-transitionDirection*16)+'px)';
-        content.style.pointerEvents='';old.scene.style.opacity='1';old.content.style.opacity='0';
-        clearTimeout(transitionTimer);transitionTimer=setTimeout(()=>{if(serial===transitionSerial)clearOutgoing();},duration+40);
+        content.style.pointerEvents='';old.scene.style.opacity='0';old.content.style.opacity='0';
+        const finish=()=>{if(serial===transitionSerial)clearOutgoing();};
+        old.scene.addEventListener('transitionend',event=>{if(event.target===old.scene&&event.propertyName==='opacity')finish();});
+        clearTimeout(transitionTimer);transitionTimer=setTimeout(finish,duration+(reduced?0:300));
     }
     function stopTrailer(){
         if(nodes){const artwork=nodes.scene.querySelector('.artwork');artwork.style.transition='none';nodes.scene.classList.remove('has-trailer');artwork.getBoundingClientRect();artwork.style.transition='';}trailerActive=false;trailerPlaying=false;trailerMuted=true;clearTimeout(trailerWatchdog);trailerWatchdog=null;trailerSizeObserver?.disconnect();trailerSizeObserver=null;if(nodes){nodes.sound.hidden=true;nodes.sound.replaceChildren(icon('muted'));nodes.sound.setAttribute('aria-pressed','false');nodes.sound.title=words().sound;nodes.sound.setAttribute('aria-label',words().sound);nodes.preview.replaceChildren(icon('trailer'));nodes.preview.title=words().trailer;nodes.preview.setAttribute('aria-label',words().trailer);}lastRotation=Date.now();
@@ -272,7 +274,8 @@
 section.banner{height:clamp(470px,var(--banner-height,78svh),1000px);min-height:470px;border:0;border-radius:0;box-shadow:none;background:transparent}section.banner.compact{height:clamp(400px,60svh,680px);min-height:400px}.banner .content{bottom:110px;right:42%;max-width:740px}.banner .logo{max-width:min(420px,100%);max-height:150px}.banner .controls{bottom:42px}.banner .dots{bottom:55px}.backdrop{object-position:var(--backdrop-position,center top);transition:opacity var(--fade-duration,350ms)}.backdrop[hidden]{display:block!important;opacity:0}.backdrop:not([hidden]){opacity:1}.preview{transition-duration:var(--fade-duration,350ms)}.preview slot{display:block;width:100%;height:100%}section{touch-action:pan-y}
 @media(max-width:760px){section,section.compact{height:470px;min-height:470px;border-radius:14px}.backdrop{object-position:65% top}.content{left:22px;right:22px;bottom:80px}.eyebrow{font-size:9px;margin-bottom:12px}.logo{max-width:230px;max-height:75px;margin-bottom:14px}h2{font-size:28px;margin-bottom:12px}.meta{font-size:11px;gap:6px 9px;margin-bottom:12px}.meta .genre{display:none}.overview{font-size:12px;line-height:1.6;-webkit-line-clamp:3;margin-bottom:16px}.actions a,.actions button{padding:10px 14px;min-height:42px;font-size:12px}.controls{left:22px;bottom:22px;gap:5px}.controls button{width:32px;height:32px;padding:7px}.controls .count{font-size:11px;min-width:33px}.dots{right:20px;bottom:35px;max-width:25%;gap:5px}.dots button{width:5px;height:5px;min-height:5px}.dots button[aria-pressed=true]{width:15px}}@media(max-width:760px){section.banner,section.banner.compact{height:clamp(460px,var(--banner-height,78svh),850px);min-height:460px;border-radius:0}.banner .content{left:22px;right:22px;bottom:92px}.banner .controls{bottom:26px}.banner .dots{bottom:39px}.banner .logo{max-width:270px;max-height:100px}.controls{max-width:calc(100% - 40px);gap:4px}.dots{max-width:17%}}
 
-/* Fade only the artwork: the fully opaque trailer underneath fills every pixel. */
+/* Fade only the artwork over its trailer; blend complete scenes in a transparent group. */
+.visuals{position:absolute;inset:0;isolation:isolate;z-index:0;pointer-events:none}.visuals>.scene{mix-blend-mode:plus-lighter}
 .scene{--jqmb-photo-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cfilter%20id%3D%22s%22%20x%3D%22-40%25%22%20y%3D%22-40%25%22%20width%3D%22180%25%22%20height%3D%22180%25%22%3E%3CfeGaussianBlur%20stdDeviation%3D%227.5%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M-30%20-30H35V0C35%2035%2043%2075%2055%20100L75%20130H-30Z%22%20fill%3D%22white%22%20filter%3D%22url(%23s)%22%2F%3E%3C%2Fsvg%3E");position:absolute;inset:0;isolation:isolate;z-index:0;overflow:hidden;mask-image:linear-gradient(to bottom,#000 0%,#000 58%,transparent 100%)}
 .scene .artwork{position:absolute;inset:0;z-index:1;--jqmb-photo-cut:0;transition:--jqmb-photo-cut 1s ease-in-out;mask-image:linear-gradient(rgb(0 0 0 / calc(1 - var(--jqmb-photo-cut))),rgb(0 0 0 / calc(1 - var(--jqmb-photo-cut)))),var(--jqmb-photo-mask);mask-size:100% 100%,100% 100%;mask-repeat:no-repeat;mask-composite:add;pointer-events:none}
 .scene.has-trailer .artwork{--jqmb-photo-cut:1}

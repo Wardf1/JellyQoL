@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/Wardf1/JellyQoL/main/assets/jelly-qol.png",
     "versions": [
       {
+        "version": "1.10.1.0",
+        "timestamp": "2026-11-22T20:18:55Z",
+        "changelog": "The outgoing Media Bar scene now animates all the way to zero opacity and is removed after its opacity transition ends. Isolated additive compositing prevents overlap darkening while preserving directional motion, overscan at both edges and the 1.4-second transition. Existing context-menu actions remain available.",
+        "targetAbi": "12.1.0.0",
+        "checksum": "9d287731ce79c3d0830399c44bcd9453",
+        "sourceUrl": "https://github.com/Wardf1/JellyQoL/releases/download/v1.10.1.0/JellyQoL_1.10.1.0.zip"
+      },
+      {
         "version": "1.10.0.0",
         "timestamp": "2026-11-22T13:24:22Z",
         "changelog": "Distinguished new arrivals from replacement files using persisted media baselines and logical identity matching. New titles keep generic notifications. Later updates announce added audio/subtitle languages or higher resolution only; codec, bitrate, size, naming, unchanged replacements and downgrades stay silent. Baselines survive restart, cleared history and retention. Updates and initial arrivals group separately, with per-user access checks and Seerr/library deduplication. English and Polish messages.",
