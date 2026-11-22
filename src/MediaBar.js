@@ -133,7 +133,7 @@
         const next=e('div',null,'scene'),backdrop=nodes.backdrop.cloneNode(false);backdrop.onload=backdrop.onerror=null;
         const artwork=e('div',null,'artwork');artwork.append(backdrop);next.append(artwork);scene.after(next);
         outgoing={scene,content,frame,player,video,observer};nodes.scene=next;nodes.backdrop=backdrop;
-        next.style.opacity='0';next.style.transform='translateX('+(transitionDirection*4)+'%)';nodes.content.style.opacity='0';nodes.content.style.transform='translateX('+(transitionDirection*16)+'px)';nodes.content.style.pointerEvents='none';
+        next.style.opacity='0';next.style.transform='translateX('+(transitionDirection*4)+'%) scale(1.1)';nodes.content.style.opacity='0';nodes.content.style.transform='translateX('+(transitionDirection*16)+'px)';nodes.content.style.pointerEvents='none';
     }
     function revealTransition(){
         if(!outgoing||!nodes)return;const serial=transitionSerial;
@@ -141,10 +141,13 @@
         const incoming=nodes.scene,content=nodes.content,old=outgoing;
         // Flush the starting opacity before changing it, even for cached artwork.
         incoming.getBoundingClientRect();
-        for(const node of [incoming,old.scene])node.style.transition='opacity '+duration+'ms ease-in-out,transform '+duration+'ms cubic-bezier(.22,.61,.36,1)';
-        content.style.transition=reduced?'none':'opacity 700ms ease-out 350ms,transform 1050ms cubic-bezier(.22,.61,.36,1) 200ms';
-        old.content.style.transition=reduced?'none':'opacity 350ms ease-out,transform 700ms ease-out';
-        incoming.style.opacity='1';content.style.opacity='1';incoming.style.transform=content.style.transform='translateX(0)';old.scene.style.transform='translateX('+(-transitionDirection*4)+'%)';old.content.style.transform='translateX('+(-transitionDirection*16)+'px)';content.style.pointerEvents='';old.scene.style.opacity='0';old.content.style.opacity='0';
+        // Slight overscan covers both edges throughout the directional crossfade.
+        // The old scene stays opaque underneath, so their overlap never dims to black.
+        const blend='opacity '+duration+'ms ease-in-out,transform '+duration+'ms ease-in-out';
+        incoming.style.transition=old.scene.style.transition=content.style.transition=old.content.style.transition=blend;
+        incoming.style.opacity='1';content.style.opacity='1';incoming.style.transform=content.style.transform='none';
+        old.scene.style.transform='translateX('+(-transitionDirection*4)+'%) scale(1.1)';old.content.style.transform='translateX('+(-transitionDirection*16)+'px)';
+        content.style.pointerEvents='';old.scene.style.opacity='1';old.content.style.opacity='0';
         clearTimeout(transitionTimer);transitionTimer=setTimeout(()=>{if(serial===transitionSerial)clearOutgoing();},duration+40);
     }
     function stopTrailer(){
