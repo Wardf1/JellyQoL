@@ -153,9 +153,10 @@
                 badge.setAttribute('data-mediahider-status', ''); container.appendChild(badge);
             }
             badge.dataset.signature = signature;
-            badge.style.cssText = 'display:inline-flex;align-items:center;gap:.4em;vertical-align:middle';
-            const glyph = icon(state.Hidden ? 'visibility_off' : 'visibility'); glyph.style.fontSize = '1.15em';
+            badge.style.cssText = 'display:inline-flex;align-items:center;gap:.4em;vertical-align:middle;min-width:0;max-width:100%;white-space:normal';
+            const glyph = icon(state.Hidden ? 'visibility_off' : 'visibility'); glyph.style.fontSize = '1.15em'; glyph.style.flexShrink = '0';
             const text = document.createElement('span'); text.textContent = state.Hidden && (state.GroupNames || []).length ? t('hiddenGroups').replace('{groups}', state.GroupNames.join(', ')) : t(state.Hidden ? 'hidden' : 'visible');
+            text.style.minWidth = '0'; text.style.overflowWrap = 'anywhere';
             badge.replaceChildren(glyph, text);
             badge.title = state.Inherited ? t('inherited').replace('{name}', state.TargetName) : 'Jelly QoL';
         });
@@ -407,7 +408,7 @@
         async function previewModule() {
             if (window.JellyQoLExtras?.previewAnnouncement) return window.JellyQoLExtras;
             if (!previewLoader) previewLoader = new Promise((resolve, reject) => {
-                const script = document.createElement('script'); script.src = apiClient().getUrl('MediaHider/WebExtras.js') + '?v=1.10.1.0';
+                const script = document.createElement('script'); script.src = apiClient().getUrl('MediaHider/WebExtras.js') + '?v=1.10.2.0';
                 script.onload = () => window.JellyQoLExtras?.previewAnnouncement ? resolve(window.JellyQoLExtras) : reject(new Error('Preview unavailable'));
                 script.onerror = () => { script.remove(); previewLoader = null; reject(new Error('Preview unavailable')); };
                 document.head.appendChild(script);
